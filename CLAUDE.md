@@ -96,17 +96,23 @@ operational, not architectural.
   `package-lock.json` that confuses Next.js's root auto-detection — pinned
   via `turbopack.root` in `next.config.ts`. Don't remove that config.
 
-## Status (Phase 0)
+## Status (Phase 0 — complete)
 
 Done: exercise schema + namespace dictionary contracts (external docs, see
 above), content validator + CI, one round-tripped example exercise
 (`buyer-impact-areas`, under the `founder-0-1` track), base layout/design
-tokens, initial Supabase schema + RLS (unexecuted — see `supabase/README.md`).
+tokens. Supabase project is live (`ypwygoykzbjnsokbjwwc`), migration
+`0001_init.sql` applied and RLS verified against the real database (anon
+correctly sees `[]` on org-scoped tables, correctly gets `42501` attempting
+to write cross-org). Vercel project (`sailsadvisory/sails-platform`) linked
+to this repo, env vars set across production/preview/development, deployed
+and verified at https://sails-platform-six.vercel.app.
 
-Not done: Supabase project doesn't exist yet: create it, run the migration,
-wire `.env.local` from `.env.example`. Auth, the generic exercise renderer,
-and the content-sync job (content files → `tracks`/`modules`/`exercises`
-tables) are Phase 1.
+Not done (Phase 1): magic-link auth, the generic exercise renderer, the
+context store (`contextStore` service per plan §4), and the content-sync job
+(content files → `tracks`/`modules`/`exercises` tables — those tables exist
+but are empty; nothing writes to them yet). `ANTHROPIC_API_KEY` is not yet
+set anywhere — needed before any `ai_review`/`ai_generate` step can run.
 
 ## Hosting (once past Phase 0)
 
