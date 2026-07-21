@@ -1,0 +1,52 @@
+# v1 ships a flattened `icp.segments` shape (segment_label/industry/
+# size_range/geography as sibling fields) rather than the nested
+# `firmographics: {...}` object sketched in the Context Namespace Dictionary
+# doc. The context store passes step answers straight through — there's no
+# reshaping step in the write pipeline yet — so the documented nested shape
+# would need either a new step type or a mapping-transform feature neither
+# of which earns its cost for a Phase 1 MVP. Namespace dictionary should be
+# read as directional intent here, not a runtime guarantee.
+slug: icp-segments
+schema_version: 1
+title: "Define Your ICP Segment"
+module: icp-tiering
+tracks: [founder-0-1, smb-velocity, mid-market]
+time_estimate: 20m
+intent: training
+
+reads: [company.product_name]
+requires: [company.product_name]
+
+writes:
+  - from: answers.segments
+    to: icp.segments
+    mode: merge_by_key
+    key_field: id
+
+steps:
+  - type: teach
+    body: |
+      Your ICP is who you win fastest with, not everyone who could
+      theoretically buy. Name 1-3 segments — most founder-led teams do
+      better with one sharp segment than three vague ones.
+
+  - type: example
+    body: |
+      For a company selling {{context.company.product_name}}, a segment
+      might look like: "Multi-location convenience store operators, 5-30
+      locations, US Southeast" — specific enough that a rep could look at
+      a company's website and know in 10 seconds if it fits.
+
+  - id: segments
+    type: input_list
+    label: "Your ICP segments"
+    min: 1
+    max: 3
+    fields:
+      - { name: segment_label, label: "Segment name", type: text }
+      - { name: industry, label: "Industry / vertical", type: text }
+      - { name: size_range, label: "Company size", type: text }
+      - { name: geography, label: "Geography", type: text }
+
+  - type: output_preview
+    shows_writes: true

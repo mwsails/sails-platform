@@ -1,0 +1,104 @@
+# The first exercise every org completes. Seeds `company.*`, which doubles
+# as the routing-signal set the plan (§2) calls for capturing at diagnostic
+# time — even though track *recommendation* logic itself lives in app code,
+# not this file (a recommendation is a branch over multiple fields, not a
+# single-field mapping the writes/steps model is built to express).
+slug: onboarding-diagnostic
+schema_version: 1
+title: "Your Sales Diagnostic"
+module: orientation-diagnostic
+tracks: [founder-0-1, smb-velocity, mid-market, sales-leadership]
+time_estimate: 10m
+intent: training
+
+reads: []
+requires: []
+
+writes:
+  - from: answers.company_name
+    to: company.name
+    mode: replace
+  - from: answers.product_name
+    to: company.product_name
+    mode: replace
+  - from: answers.motion
+    to: company.motion
+    mode: replace
+  - from: answers.acv
+    to: company.acv
+    mode: replace
+  - from: answers.cycle_length
+    to: company.cycle_length_days
+    mode: replace
+  - from: answers.team_size
+    to: company.team_size
+    mode: replace
+  - from: answers.stakeholder_count
+    to: company.stakeholder_count
+    mode: replace
+
+steps:
+  - type: teach
+    body: |
+      A few questions about how you sell today. Nothing here is graded —
+      it just seeds your profile so every exercise after this one already
+      knows your business instead of asking you to repeat yourself.
+
+  - id: company_name
+    type: input_text
+    label: "Company name"
+    placeholder: "Acme Inc."
+
+  - id: product_name
+    type: input_text
+    label: "What do you sell, in one sentence?"
+    placeholder: "A POS system for regional convenience stores"
+
+  - id: motion
+    type: select
+    label: "How do you sell today?"
+    options:
+      - { value: founder_led, label: "Founder-led — it's mostly me" }
+      - { value: team_selling, label: "Team selling — I have reps" }
+
+  - id: acv
+    type: select
+    label: "Typical annual contract value (ACV)"
+    options:
+      - { value: "3000", label: "Under $5K" }
+      - { value: "10000", label: "$5K-$15K" }
+      - { value: "20000", label: "$15K-$25K" }
+      - { value: "40000", label: "$25K-$50K" }
+      - { value: "75000", label: "$50K-$100K" }
+      - { value: "150000", label: "$100K+" }
+
+  - id: cycle_length
+    type: select
+    label: "Typical sales cycle length"
+    options:
+      - { value: "14", label: "Under 2 weeks" }
+      - { value: "30", label: "2-4 weeks" }
+      - { value: "60", label: "1-2 months" }
+      - { value: "90", label: "2-3 months" }
+      - { value: "150", label: "3+ months" }
+
+  - id: team_size
+    type: select
+    label: "How many people sell today, including you?"
+    options:
+      - { value: "1", label: "Just me" }
+      - { value: "2", label: "2-4" }
+      - { value: "5", label: "5-9" }
+      - { value: "10", label: "10+" }
+
+  - id: stakeholder_count
+    type: select
+    label: "How many people are typically involved in a buying decision?"
+    options:
+      - { value: "1", label: "Just one" }
+      - { value: "2", label: "2-3" }
+      - { value: "4", label: "4-5" }
+      - { value: "6", label: "6+" }
+
+  - type: output_preview
+    shows_writes: true

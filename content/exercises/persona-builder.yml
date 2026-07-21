@@ -1,0 +1,59 @@
+# Deliberately reads BOTH icp.segments (icp-segments exercise) and
+# pain_tree.impact_areas (buyer-impact-areas exercise) so completing this one
+# visibly uses output from earlier exercises in the sequence, not just the
+# immediately-prior one. `cares_about`/`day_to_day_pains` ship as a single
+# textarea each in v1 rather than the string-array shape in the namespace
+# dictionary — same flattening tradeoff as icp-segments, noted there.
+slug: persona-builder
+schema_version: 1
+title: "Build Your Buyer Personas"
+module: personas-buyer-roles
+tracks: [founder-0-1, smb-velocity, mid-market]
+time_estimate: 20m
+intent: training
+
+reads: [icp.segments, pain_tree.impact_areas]
+requires: [icp.segments]
+
+writes:
+  - from: answers.personas
+    to: personas.personas
+    mode: merge_by_key
+    key_field: id
+
+steps:
+  - type: teach
+    body: |
+      A persona is the specific person who feels the pain and signs off on
+      the deal, not a generic job title. Build 2-4: who are the people in
+      the room when this deal happens?
+
+  - type: example
+    body: |
+      You already defined {{context.icp.segments[0].segment_label}} as a
+      segment, and named impact areas like
+      {{context.pain_tree.impact_areas[0].area_name}} as what they feel.
+      Now attach those to the actual people: who is the economic buyer, who
+      champions this internally, who uses it day to day?
+
+  - id: personas
+    type: input_list
+    label: "Your buyer personas"
+    min: 2
+    max: 4
+    fields:
+      - { name: title, label: "Title", type: text }
+      - name: role_in_deal
+        label: "Role in the deal"
+        type: select
+        options:
+          - { value: economic_buyer, label: "Economic buyer" }
+          - { value: champion, label: "Champion" }
+          - { value: user, label: "User" }
+          - { value: influencer, label: "Influencer" }
+          - { value: blocker, label: "Blocker" }
+      - { name: cares_about, label: "What they care about", type: textarea }
+      - { name: day_to_day_pains, label: "Day-to-day pains", type: textarea }
+
+  - type: output_preview
+    shows_writes: true
