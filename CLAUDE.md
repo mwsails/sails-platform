@@ -96,23 +96,41 @@ operational, not architectural.
   `package-lock.json` that confuses Next.js's root auto-detection — pinned
   via `turbopack.root` in `next.config.ts`. Don't remove that config.
 
-## Status (Phase 0 — complete)
+## Status
 
-Done: exercise schema + namespace dictionary contracts (external docs, see
-above), content validator + CI, one round-tripped example exercise
-(`buyer-impact-areas`, under the `founder-0-1` track), base layout/design
-tokens. Supabase project is live (`ypwygoykzbjnsokbjwwc`), migration
-`0001_init.sql` applied and RLS verified against the real database (anon
-correctly sees `[]` on org-scoped tables, correctly gets `42501` attempting
-to write cross-org). Vercel project (`sailsadvisory/sails-platform`) linked
-to this repo, env vars set across production/preview/development, deployed
-and verified at https://sails-platform-six.vercel.app.
+**Phase 0 — complete.** Exercise schema + namespace dictionary contracts
+(external docs, see above), content validator + CI, base layout/design
+tokens. Supabase project live (`ypwygoykzbjnsokbjwwc`), migration
+`0001_init.sql` applied, RLS verified against the real database.
 
-Not done (Phase 1): magic-link auth, the generic exercise renderer, the
-context store (`contextStore` service per plan §4), and the content-sync job
-(content files → `tracks`/`modules`/`exercises` tables — those tables exist
-but are empty; nothing writes to them yet). `ANTHROPIC_API_KEY` is not yet
-set anywhere — needed before any `ai_review`/`ai_generate` step can run.
+**Phase 1 — complete**, verified end-to-end with a real signed-in test org
+(not just unit-level): magic-link auth (`proxy.ts` + `@supabase/ssr`,
+invite-only, no public signup), the content-sync job
+(`npm run content:sync` — content files → `tracks`/`modules`/`exercises`
+tables, needed for `exercise_sessions.exercise_slug`'s FK to resolve at
+all), the generic exercise renderer for every non-AI step type, the context
+store (`writeContext`/`readContext` in `src/lib/context/store.ts` —
+replace/append/merge_by_key-on-id, append-only history, staleness marking),
+the onboarding diagnostic, and two new chained exercises (`icp-segments`,
+`persona-builder`) alongside Phase 0's `buyer-impact-areas`. `persona-builder`
+deliberately reads both `icp-segments`' and `buyer-impact-areas`' output and
+renders it inline — confirmed live in the browser, not just by design. The
+Sales Profile page (view + edit, same write pipeline, `source: 'manual'`)
+and the admin org/user provisioning page are both live.
+
+One real bug this verification caught and fixed: `readContext` returns a
+flat map keyed by full namespaced strings (`"icp.segments"`), not a nested
+object — the template interpolator was dot-splitting every segment and
+silently rendering empty. Fixed in `src/lib/template.ts`
+(`resolveContextPath`); worth remembering if namespace-key handling ever
+gets touched again.
+
+Not done (Phase 2): `ai_review`/`ai_generate` step types (currently render
+a placeholder), playbook section generation/staleness UI, DOCX/PDF export.
+`ANTHROPIC_API_KEY` is not yet set anywhere — needed before any AI step can
+run. `calculator`, `input_table`, and `rank` step types are implemented and
+typecheck/lint clean but have no seeded content exercising them live yet —
+worth a real test before leaning on them for Phase 3 content.
 
 ## Hosting (once past Phase 0)
 
