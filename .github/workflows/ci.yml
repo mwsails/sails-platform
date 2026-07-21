@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # A broken exercise/track/module content file fails here, not in production
+      # (Phase 0 accept criteria — see SAILS_Platform_Exercise_Schema_v1.md §8).
+      - run: npm run content:validate
+
+      - run: npm run lint
+
+      - run: npm run build

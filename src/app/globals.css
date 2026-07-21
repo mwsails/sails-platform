@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens reused from the SAILS Advisory marketing site
+ * (sails-advisory/CLAUDE.md hard rules): navy, accent blue, white, light
+ * gray, Playfair Display + Inter. Same brand, different product — a
+ * founder opening the platform right after the marketing site shouldn't
+ * feel like they landed somewhere else.
+ */
+:root {
+  --sails-navy: #0d1b4b;
+  --sails-blue: #2b60be;
+  --sails-gray: #f4f5f7;
+  --background: #ffffff;
+  --foreground: var(--sails-navy);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-sails-navy: var(--sails-navy);
+  --color-sails-blue: var(--sails-blue);
+  --color-sails-gray: var(--sails-gray);
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-playfair);
+}
+
+:root[data-theme="dark"] {
+  --background: #0a0f24;
+  --foreground: #ededed;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #0a0f24;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}

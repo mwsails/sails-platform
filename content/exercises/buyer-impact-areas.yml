@@ -1,0 +1,55 @@
+# The plan's own worked example (SAILS_Platform_Project_Plan.md §5), made
+# concrete against the finalized Exercise Schema v1. This exercise exists to
+# prove the round-trip: file -> content:validate -> listed in app
+# (Phase 0 accept criteria).
+slug: buyer-impact-areas
+schema_version: 1
+title: "Your Buyer's Top 3-4 Impact Areas"
+module: messaging-foundation
+tracks: [founder-0-1]
+time_estimate: 20m
+intent: training
+
+reads:
+  - icp.segments
+  - personas.personas
+requires:
+  - icp.segments
+
+writes:
+  - from: answers.impact_areas
+    to: pain_tree.impact_areas
+    mode: merge_by_key
+    key_field: id
+
+steps:
+  - type: teach
+    body: |
+      Every buyer feels a handful of impact areas most acutely. Naming them
+      precisely — who feels it, what metric moves, what it costs to ignore —
+      is what turns a generic pitch into a specific one.
+
+  - type: example
+    body: |
+      For a company selling to {{context.icp.segments[0].segment_label}},
+      a common impact area sounds like: "Manual reconciliation eats 6 hours
+      a week from the ops lead, who's also the only person who can approve
+      refunds — so refunds queue up whenever she's out."
+
+  - id: impact_areas
+    type: input_list
+    label: "Your buyer's top impact areas"
+    min: 3
+    max: 4
+    fields:
+      - { name: area_name, label: "Area", type: text }
+      - { name: who_feels_it, label: "Who feels it", type: text }
+      - { name: metric_affected, label: "Metric affected", type: text }
+      - { name: cost_if_ignored, label: "Cost if ignored", type: textarea }
+
+  - type: ai_review
+    prompt_ref: review-impact-areas
+    reviews_step: impact_areas
+
+  - type: output_preview
+    shows_writes: true
