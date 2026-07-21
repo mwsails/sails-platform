@@ -9,7 +9,13 @@ import { submitExercise } from "./actions";
 
 type Answers = Record<string, unknown>;
 
-function Prose({ body, data }: { body: string; data: Record<string, unknown> }) {
+function Prose({
+  body,
+  data,
+}: {
+  body: string;
+  data: { context: Record<string, unknown>; answers: Record<string, unknown> };
+}) {
   const rendered = renderTemplate(body, data);
   return (
     <div className="whitespace-pre-wrap text-sm leading-relaxed text-neutral-700">{rendered.trim()}</div>
