@@ -61,6 +61,31 @@ operational, not architectural.
    `multithreading`) — the validator rejects it. The architecture tolerates
    them; the product doesn't ship them yet.
 
+## Track model: tiers + cross-cutting modifiers
+
+Tracks are **not** one-per-persona anymore (that was the Phase 0/early-Phase-1
+shape: `founder-0-1`/`smb-velocity`/`mid-market`/`sales-leadership`, one
+track per user). As of the tier-routing rework, a user has:
+
+- Exactly one **tier** track — `smb`, `mid-market`, or `enterprise`.
+  `enterprise` is routing/labeling only (no content ships against it — the
+  Journey page shows a "coming soon, here's the closest fit" placeholder
+  instead of an empty module list).
+- Zero or more **modifier** tracks layered on top — `founder-led` (motion is
+  founder-led) and `sales-leadership` (has a dedicated manager). A module or
+  exercise's `tracks: []` array can name either kind; a user's applicable
+  set is `[tier, ...modifiers]`, computed in
+  `src/lib/tracks/recommend.ts` (`applicableTracks`), never hard-coded per
+  page. See `TIER_TRACK_SLUGS`/`MODIFIER_TRACK_SLUGS` in
+  `namespace-dictionary.ts`.
+- The tier is a **deterministic score** (`recommendTrack`), not an AI guess —
+  ACV/cycle length/stakeholder count/target customer size each score 0-2,
+  procurement involvement bumps the tier up (never down). Computed once,
+  after the diagnostic exercise's own writes land (see the `onboarding-diagnostic`
+  special-case in `src/app/journey/[slug]/actions.ts`), written to
+  `company.recommended_tier`. Soft, not locked — editable on `/profile` like
+  any other context field.
+
 ## Repo layout
 
 ```
@@ -124,6 +149,15 @@ object — the template interpolator was dot-splitting every segment and
 silently rendering empty. Fixed in `src/lib/template.ts`
 (`resolveContextPath`); worth remembering if namespace-key handling ever
 gets touched again.
+
+**Track model reworked** post-Phase-1 (Matt's call, see git log): the four
+one-per-user tracks became three deal-size tiers (`smb`/`mid-market`/
+`enterprise`) plus two cross-cutting modifiers (`founder-led`/
+`sales-leadership`), with a deterministic (non-AI) diagnostic-driven
+recommendation. Verified live for both the mid-market path and the
+enterprise placeholder path (redid the diagnostic twice against the real
+deployment with inputs tuned to hit each tier, confirmed the exact expected
+tier came back both times) — see `src/lib/tracks/recommend.ts`.
 
 Not done (Phase 2): `ai_review`/`ai_generate` step types (currently render
 a placeholder), playbook section generation/staleness UI, DOCX/PDF export.
