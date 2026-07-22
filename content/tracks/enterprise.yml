@@ -1,0 +1,16 @@
+# Routing/labeling only — no content ships against this track in v1 (plan
+# §2, reaffirmed by Matt: detect and honestly label enterprise-fit orgs,
+# don't half-build enterprise content). The Journey page special-cases this
+# tier to show a placeholder instead of an empty module list. When the
+# Enterprise track is actually built (from the PclubFY26 enterprise-flagged
+# assets per the plan), this becomes a real tier like smb/mid-market.
+slug: enterprise
+title: "Enterprise Motion"
+description: >
+  For $100K+ ACV deals on 90+ day cycles with formal buying committees and
+  procurement/legal/security review. Not yet built — recommended in the
+  meantime: start with Mid-Market content and expect to adapt it upward.
+audience_tags:
+  - 100k-plus-acv
+  - 90-plus-day-cycle
+  - not-yet-built

@@ -36,6 +36,18 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
     motion: scalar,
     team_size: scalar,
     stakeholder_count: scalar,
+    // Added for SMB/Mid-Market/Enterprise tier routing (recommend.ts) —
+    // target_customer_size/procurement_involved/buyer_title feed the score;
+    // total_revenue is context/coaching-depth only, deliberately NOT used
+    // for routing (revenue doesn't reliably predict deal motion — a $50M
+    // company can still run small transactional deals).
+    target_customer_size: scalar,
+    procurement_involved: scalar,
+    buyer_title: scalar,
+    total_revenue: scalar,
+    // Written by recommend.ts, not by the diagnostic exercise directly —
+    // the one tier-deciding field every other namespace/module keys off.
+    recommended_tier: scalar,
   },
 
   icp: {
@@ -216,6 +228,8 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
     onboarding_plan: { kind: "any" },
     comp_philosophy: scalar,
     interview_scorecard: arrayOf({ competency: scalar, question: scalar }),
+    // Drives the "sales-leadership" cross-cutting track tag (recommend.ts).
+    has_sales_manager: scalar,
   },
 };
 
@@ -251,9 +265,12 @@ export const ALL_NAMESPACES: Record<string, Record<string, FieldNode>> = {
   ...RESERVED_NAMESPACES,
 };
 
-export const V1_TRACK_SLUGS = [
-  "founder-0-1",
-  "smb-velocity",
-  "mid-market",
-  "sales-leadership",
-] as const;
+// Deal-size tiers — a user has exactly one. "enterprise" is routing/labeling
+// only in v1 (no content ships against it yet).
+export const TIER_TRACK_SLUGS = ["smb", "mid-market", "enterprise"] as const;
+
+// Cross-cutting modifiers — a user can have zero, one, or both alongside
+// their tier. See src/lib/tracks/recommend.ts.
+export const MODIFIER_TRACK_SLUGS = ["founder-led", "sales-leadership"] as const;
+
+export const V1_TRACK_SLUGS = [...TIER_TRACK_SLUGS, ...MODIFIER_TRACK_SLUGS] as const;

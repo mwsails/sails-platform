@@ -8,7 +8,7 @@ slug: persona-builder
 schema_version: 1
 title: "Build Your Buyer Personas"
 module: personas-buyer-roles
-tracks: [founder-0-1, smb-velocity, mid-market]
+tracks: [smb, mid-market]
 time_estimate: 20m
 intent: training
 

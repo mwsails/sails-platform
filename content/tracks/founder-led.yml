@@ -1,0 +1,14 @@
+# Cross-cutting modifier, not a deal-size tier — a founder-led org can be
+# any tier (usually SMB, occasionally mid-market). Content tagged with this
+# track shows *in addition to* whichever tier track applies, for anyone
+# whose company.motion diagnostic answer is "founder_led". See
+# src/lib/tracks/recommend.ts for how a user's applicable track set is computed.
+slug: founder-led
+title: "Founder-Led Selling"
+description: >
+  For founders still doing most or all of the selling themselves, pre
+  first sales hire. Emphasis on founder-led outbound and first-hire prep,
+  layered on top of whichever deal-size track applies.
+audience_tags:
+  - founder-led
+  - pre-first-hire

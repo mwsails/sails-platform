@@ -56,6 +56,17 @@ async function main() {
     if (error) throw error;
   }
 
+  // Delete rows for content that no longer exists (e.g. a renamed track
+  // slug) — upsert alone leaves those as stale orphans forever.
+  async function pruneStale(table: string, currentSlugs: string[]) {
+    if (currentSlugs.length === 0) return;
+    const { error } = await supabase.from(table).delete().not("slug", "in", `(${currentSlugs.join(",")})`);
+    if (error) throw error;
+  }
+  await pruneStale("tracks", tracks.map((t) => t.data.slug));
+  await pruneStale("modules", modules.map((m) => m.data.slug));
+  await pruneStale("exercises", exercises.map((e) => e.data.slug));
+
   console.log(
     `Synced ${tracks.length} track(s), ${modules.length} module(s), ${exercises.length} exercise(s).`
   );

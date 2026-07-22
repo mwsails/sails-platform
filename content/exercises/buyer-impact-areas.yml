@@ -6,7 +6,7 @@ slug: buyer-impact-areas
 schema_version: 1
 title: "Your Buyer's Top 3-4 Impact Areas"
 module: messaging-foundation
-tracks: [founder-0-1]
+tracks: [smb, mid-market]
 time_estimate: 20m
 intent: training
 
