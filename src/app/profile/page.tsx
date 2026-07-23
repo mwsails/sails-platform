@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-org";
 import { readAllContextByNamespace } from "@/lib/context/store";
+import { loadFieldOptions } from "@/lib/content/field-options";
 import { ContextField } from "./ContextField";
 import {
   BuildingIcon,
@@ -51,6 +52,7 @@ export default async function ProfilePage() {
 
   const grouped = await readAllContextByNamespace(supabase, user.orgId);
   const namespaces = Object.keys(grouped).sort();
+  const fieldOptions = loadFieldOptions();
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
@@ -91,7 +93,12 @@ export default async function ProfilePage() {
                 </div>
                 <div className="px-5">
                   {grouped[ns].map((field) => (
-                    <ContextField key={field.key} fieldKey={field.key} value={field.value} />
+                    <ContextField
+                      key={field.key}
+                      fieldKey={field.key}
+                      value={field.value}
+                      options={fieldOptions[field.key]}
+                    />
                   ))}
                 </div>
               </section>
