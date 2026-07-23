@@ -159,12 +159,52 @@ enterprise placeholder path (redid the diagnostic twice against the real
 deployment with inputs tuned to hit each tier, confirmed the exact expected
 tier came back both times) — see `src/lib/tracks/recommend.ts`.
 
-Not done (Phase 2): `ai_review`/`ai_generate` step types (currently render
-a placeholder), playbook section generation/staleness UI, DOCX/PDF export.
-`ANTHROPIC_API_KEY` is not yet set anywhere — needed before any AI step can
-run. `calculator`, `input_table`, and `rank` step types are implemented and
-typecheck/lint clean but have no seeded content exercising them live yet —
-worth a real test before leaning on them for Phase 3 content.
+**Full visual/UX redesign — complete.** Soft-UI design tokens (shadows,
+tints, radius, motion — see `globals.css`), hand-built inline SVG icon set
+(`src/components/icons.tsx`, no emoji anywhere), and a redesign pass across
+nav, home, Journey, the exercise runner, Profile, sign-in, and admin.
+Verified live across light/dark and mobile/desktop, not just reviewed in
+code — this caught and fixed 3 real bugs: two dark-mode contrast issues
+(hardcoded navy/neutral colors that didn't flip with the theme) and one
+mobile nav overflow (icon+label pills clipping off-screen below 400px).
+
+**Playbook generation — live** (`src/lib/playbook/{sections.ts,generate.ts}`,
+`src/app/playbook/`). 14 sections per the plan's §6 structure, each
+declaring the context keys it reads; rendered as lightweight markdown-lite
+(`##`/`-`/`**bold**` only — no markdown-parser dependency, and it's a sane
+source for the eventual DOCX export) via bespoke templates for sections with
+real seeded data and a generic structured fallback for the rest. Generate/
+regenerate/approve are server actions; staleness is driven by the existing
+`markDependentSectionsStale` mechanism in `src/lib/context/store.ts` (already
+built in Phase 1, just never had a UI in front of it until now). Verified
+live end-to-end against a real test org: generated a section, approved it,
+edited the context field it depends on, confirmed it flipped to "Needs
+regeneration" while an unrelated section stayed "Approved," then regenerated
+and confirmed it picked up the new value.
+
+**Curriculum expanded** with 3 new exercises to seed previously-empty
+playbook sections and exercise step types that had zero live content:
+`cost-of-inaction-calculator` (module: `messaging-foundation`), `objection-
+bank-builder` and `process-stages-builder` (both under the new
+`sales-process-fundamentals` module). This surfaced and fixed a real gap in
+the `calculator` step type: its computed output only ever existed in the
+rendered UI, never in the stored answer, so no `writes` mapping could ever
+target it. Fixed in `CalculatorField` (`ExerciseForm.tsx`) to persist
+`result` alongside the raw inputs — a generic renderer fix, not a one-off
+hack, so every future `calculator`-based exercise gets a working write path
+for free. Verified live: submitted the calculator with real inputs,
+confirmed the exact computed value (`6 * 75 * 48 = 21600`) landed in
+`pain_tree.cost_of_inaction_estimate` on Profile, then confirmed the
+Playbook's pain-tree section rendered it as a highlighted figure.
+`input_table`'s `dynamic` row_mode and `input_list`'s `select` field type are
+now both exercised live too (`process.stages`, `objections.objections`).
+Added namespace: `pain_tree.cost_of_inaction_estimate` (scalar) — see both
+`namespace-dictionary.ts` and the external contract doc.
+
+Not done (Phase 2 remainder): `ai_review`/`ai_generate` step types (still
+render a placeholder), DOCX/PDF export. `ANTHROPIC_API_KEY` is not yet set
+anywhere — needed before any AI step can run. `rank` is the one step type
+still implemented-but-unseeded live.
 
 ## Hosting (once past Phase 0)
 
