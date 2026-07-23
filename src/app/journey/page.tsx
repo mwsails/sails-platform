@@ -13,6 +13,7 @@ import {
   TargetIcon,
   SparkleIcon,
   UsersIcon,
+  ChartBarIcon,
 } from "@/components/icons";
 import type { ComponentType, SVGProps } from "react";
 
@@ -21,6 +22,7 @@ const MODULE_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   "icp-tiering": TargetIcon,
   "messaging-foundation": SparkleIcon,
   "personas-buyer-roles": UsersIcon,
+  "sales-process-fundamentals": ChartBarIcon,
 };
 
 export default async function JourneyPage() {

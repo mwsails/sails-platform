@@ -1,0 +1,62 @@
+slug: objection-bank-builder
+schema_version: 1
+title: "Build Your Objection Bank"
+module: sales-process-fundamentals
+tracks: [smb, mid-market]
+time_estimate: 25m
+intent: training
+
+reads:
+  - personas.personas
+requires: []
+
+writes:
+  - from: answers.objections
+    to: objections.objections
+    mode: merge_by_key
+    key_field: id
+
+steps:
+  - type: teach
+    body: |
+      Every deal you've lost or stalled had an objection behind it, spoken
+      or not. Naming the pattern once means every rep handles it the same
+      way instead of improvising under pressure. A reframe isn't a
+      rebuttal — it's shifting the buyer's frame before you answer, not
+      arguing with the frame they gave you.
+
+  - type: example
+    body: |
+      Objection: "We already have a spreadsheet that works fine."
+      Category: Status quo bias.
+      Reframe: "It works until it doesn't — the question isn't whether the
+      spreadsheet works today, it's what breaks when your ops lead is out
+      sick during a busy week."
+      Talk track: "Totally fair — a lot of our customers said the same
+      thing before they switched. What changed for them wasn't that the
+      spreadsheet broke, it's that it only works as long as one specific
+      person is available to run it. Is that a risk you're comfortable
+      carrying?"
+
+  - id: objections
+    type: input_list
+    label: "Your objection bank"
+    min: 4
+    max: 10
+    fields:
+      - { name: objection_text, label: "What the buyer says", type: textarea }
+      - name: category
+        label: "Category"
+        type: select
+        options:
+          - { value: price, label: "Price" }
+          - { value: timing, label: "Timing / priority" }
+          - { value: competitor, label: "Competitor / status quo" }
+          - { value: trust, label: "Trust / risk" }
+          - { value: internal_champion, label: "No internal champion" }
+          - { value: other, label: "Other" }
+      - { name: reframe, label: "Reframe", type: textarea }
+      - { name: talk_track, label: "Talk track", type: textarea }
+
+  - type: output_preview
+    shows_writes: true

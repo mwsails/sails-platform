@@ -86,6 +86,7 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
       metric_affected: scalar,
       cost_if_ignored: scalar,
     }),
+    cost_of_inaction_estimate: scalar,
   },
 
   messaging: {

@@ -1,0 +1,52 @@
+slug: process-stages-builder
+schema_version: 1
+title: "Define Your Sales Process Stages"
+module: sales-process-fundamentals
+tracks: [smb, mid-market]
+time_estimate: 30m
+intent: development
+
+reads: []
+requires: []
+
+writes:
+  - from: answers.stages
+    to: process.stages
+    mode: merge_by_key
+    key_field: id
+
+steps:
+  - type: teach
+    body: |
+      A sales stage isn't a label in your CRM, it's a claim about reality:
+      "if a deal is in this stage, these specific things have happened."
+      Vague stage definitions (Discovery, Demo, Proposal, Close) let every
+      rep define "qualified" differently — which is why forecasts drift.
+      Write entry and exit criteria specific enough that two different
+      reps would agree on whether a deal has actually moved.
+
+  - type: example
+    body: |
+      Stage: Discovery.
+      Definition: "Confirmed the buyer has a specific, named pain we can
+      solve and identified who else needs to be involved."
+      Entry criteria: "First call scheduled and held."
+      Exit criteria: "Pain confirmed in the buyer's own words, economic
+      buyer identified, next meeting booked."
+      Typical duration: "1-2 weeks."
+
+  - id: stages
+    type: input_table
+    label: "Your sales process stages, in order"
+    row_mode: dynamic
+    min: 3
+    max: 8
+    columns:
+      - { name: stage_name, label: "Stage name", type: text }
+      - { name: definition, label: "What this stage means", type: text }
+      - { name: entry_criteria, label: "Entry criteria", type: text }
+      - { name: exit_criteria, label: "Exit criteria", type: text }
+      - { name: typical_duration, label: "Typical duration", type: text }
+
+  - type: output_preview
+    shows_writes: true

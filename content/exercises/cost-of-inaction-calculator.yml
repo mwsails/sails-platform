@@ -1,0 +1,48 @@
+slug: cost-of-inaction-calculator
+schema_version: 1
+title: "Cost of Inaction Calculator"
+module: messaging-foundation
+tracks: [smb, mid-market]
+time_estimate: 10m
+intent: training
+
+reads:
+  - pain_tree.impact_areas
+requires:
+  - pain_tree.impact_areas
+
+writes:
+  - from: answers.cost_calc.result
+    to: pain_tree.cost_of_inaction_estimate
+    mode: replace
+
+steps:
+  - type: teach
+    body: |
+      A named impact area is more persuasive with a number attached.
+      "6 hours a week of manual reconciliation" is a fact; "$18,720 a year
+      of a $60/hour ops lead's time" is a reason to act this quarter.
+      You don't need precision here — a defensible estimate beats no
+      estimate.
+
+  - type: example
+    body: |
+      For {{context.pain_tree.impact_areas[0].area_name}}, affecting
+      {{context.pain_tree.impact_areas[0].who_feels_it}}: if that's 6
+      hours a week at $60/hour across 48 working weeks, the cost of
+      inaction is roughly $17,280 a year.
+
+  - id: cost_calc
+    type: calculator
+    label: "Estimate the annual cost of inaction"
+    inputs:
+      - { name: hours_per_week, label: "Hours lost per week", unit: hrs, type: number, default: 6 }
+      - { name: hourly_value, label: "Value of that time", unit: "$/hr", type: number, default: 60 }
+      - { name: weeks_per_year, label: "Working weeks per year", unit: wks, type: number, default: 48 }
+    formula: "hours_per_week * hourly_value * weeks_per_year"
+    output:
+      label: "Estimated annual cost of inaction"
+      unit: "$"
+
+  - type: output_preview
+    shows_writes: true

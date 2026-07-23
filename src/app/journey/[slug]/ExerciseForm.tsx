@@ -404,6 +404,21 @@ function CalculatorField({
     error = e instanceof Error ? e.message : String(e);
   }
 
+  // `result` rides along on the stored answer (not just rendered) so a
+  // `writes` mapping can target `answers.<stepId>.result` the same way it
+  // targets any other step's field — otherwise the computed number could
+  // never leave the page.
+  function updateInput(name: string, raw: string) {
+    const newInputs = { ...inputs, [name]: parseFloat(raw) || 0 };
+    let newResult = 0;
+    try {
+      newResult = evaluateFormula(step.formula, newInputs);
+    } catch {
+      newResult = 0;
+    }
+    onChange({ ...newInputs, result: newResult });
+  }
+
   return (
     <fieldset className={cardClass}>
       <legend className="text-sm font-medium text-[var(--foreground)]">{step.label}</legend>
@@ -416,7 +431,7 @@ function CalculatorField({
             <input
               type="number"
               value={inputs[input.name] ?? ""}
-              onChange={(e) => onChange({ ...inputs, [input.name]: parseFloat(e.target.value) || 0 })}
+              onChange={(e) => updateInput(input.name, e.target.value)}
               className="w-32 rounded-lg border border-[var(--sails-border)] bg-[var(--background)] px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--sails-blue)]/40"
             />
           </label>
@@ -426,6 +441,7 @@ function CalculatorField({
         <span className="font-medium text-[var(--foreground)]">{step.output.label}</span>
         <span className="text-lg font-semibold text-[var(--sails-blue)]">
           {error ? <span className="text-sm text-red-600">{error}</span> : (result ?? 0).toLocaleString()}
+          {step.output.unit && !error ? ` ${step.output.unit}` : ""}
         </span>
       </div>
     </fieldset>

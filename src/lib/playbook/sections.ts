@@ -105,16 +105,19 @@ export const PLAYBOOK_SECTIONS: SectionDef[] = [
   {
     slug: "pain-tree-and-cost-of-inaction",
     title: "4. Pain Tree and Cost of Inaction",
-    reads: ["pain_tree.impact_areas", "pain_tree.topics"],
+    reads: ["pain_tree.impact_areas", "pain_tree.topics", "pain_tree.cost_of_inaction_estimate"],
     render: (ctx) => {
       const areas = (ctx["pain_tree.impact_areas"] as ImpactArea[]) ?? [];
-      if (areas.length === 0) return "";
-      return areas
+      const estimate = ctx["pain_tree.cost_of_inaction_estimate"] as number | undefined;
+      if (areas.length === 0 && estimate == null) return "";
+      const areasText = areas
         .map(
           (a) =>
             `## ${a.area_name ?? "Impact area"}\n${bullet("Who feels it", a.who_feels_it ?? "—")}\n${bullet("Metric affected", a.metric_affected ?? "—")}\n${bullet("Cost if ignored", a.cost_if_ignored ?? "—")}`
         )
         .join("\n\n");
+      const estimateText = estimate != null ? `## Estimated Annual Cost of Inaction\n**$${Number(estimate).toLocaleString()}**` : "";
+      return [areasText, estimateText].filter(Boolean).join("\n\n");
     },
   },
   {
