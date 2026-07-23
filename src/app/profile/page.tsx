@@ -28,14 +28,14 @@ export default async function ProfilePage() {
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
-      <h1 className="text-2xl font-semibold text-[var(--sails-navy)]">Your Sales Profile</h1>
-      <p className="mt-1 text-sm text-neutral-500">
+      <h1 className="text-2xl font-semibold text-[var(--foreground)]">Your Sales Profile</h1>
+      <p className="mt-1 text-sm text-muted">
         Everything your exercises have written so far. Edit directly here if something needs
         correcting — it flows through the same pipeline as an exercise.
       </p>
 
       {namespaces.length === 0 ? (
-        <p className="mt-8 text-sm text-neutral-400">
+        <p className="mt-8 text-sm text-muted">
           Nothing yet — complete an exercise on the{" "}
           <Link href="/journey" className="text-[var(--sails-blue)] hover:underline">
             Journey
@@ -45,7 +45,7 @@ export default async function ProfilePage() {
       ) : (
         namespaces.map((ns) => (
           <section key={ns} className="mt-8">
-            <h2 className="text-lg font-medium text-[var(--sails-navy)]">
+            <h2 className="text-lg font-medium text-[var(--foreground)]">
               {NAMESPACE_LABELS[ns] ?? ns}
             </h2>
             <div className="mt-2">

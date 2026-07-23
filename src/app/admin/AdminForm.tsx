@@ -26,32 +26,32 @@ export function AdminForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-3 rounded-lg border border-neutral-200 p-4">
+    <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-3 rounded-lg border border-[var(--sails-border)] p-4">
       <label className="block">
-        <span className="text-sm font-medium text-[var(--sails-navy)]">Org name</span>
+        <span className="text-sm font-medium text-[var(--foreground)]">Org name</span>
         <input
           required
           value={orgName}
           onChange={(e) => setOrgName(e.target.value)}
-          className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-md border border-[var(--sails-border)] px-3 py-2 text-sm"
         />
       </label>
       <label className="block">
-        <span className="text-sm font-medium text-[var(--sails-navy)]">Invite email</span>
+        <span className="text-sm font-medium text-[var(--foreground)]">Invite email</span>
         <input
           required
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-md border border-[var(--sails-border)] px-3 py-2 text-sm"
         />
       </label>
       <label className="block">
-        <span className="text-sm font-medium text-[var(--sails-navy)]">Their name</span>
+        <span className="text-sm font-medium text-[var(--foreground)]">Their name</span>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-md border border-[var(--sails-border)] px-3 py-2 text-sm"
         />
       </label>
       <button

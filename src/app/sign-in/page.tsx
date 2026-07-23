@@ -20,15 +20,15 @@ export default function SignInPage() {
 
   return (
     <main className="mx-auto flex max-w-sm flex-col justify-center px-6 py-24">
-      <h1 className="font-[family-name:var(--font-serif)] text-2xl font-semibold text-[var(--sails-navy)]">
+      <h1 className="font-[family-name:var(--font-serif)] text-2xl font-semibold text-[var(--foreground)]">
         Sign in
       </h1>
-      <p className="mt-2 text-sm text-neutral-500">
+      <p className="mt-2 text-sm text-muted">
         Invite-only. Enter the email your org invited you with and we&apos;ll send a sign-in link.
       </p>
 
       {status === "sent" ? (
-        <p className="mt-6 rounded-lg bg-[var(--sails-gray)] p-4 text-sm text-[var(--sails-navy)]">
+        <p className="mt-6 rounded-lg bg-[var(--sails-gray)] p-4 text-sm text-[var(--foreground)]">
           Check {email} for a sign-in link.
         </p>
       ) : (
@@ -39,7 +39,7 @@ export default function SignInPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@company.com"
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
+            className="rounded-md border border-[var(--sails-border)] px-3 py-2 text-sm"
           />
           <button
             type="submit"

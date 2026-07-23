@@ -6,19 +6,71 @@ import type { ExerciseDef, Step } from "@/lib/content/exercise-schema";
 import { renderTemplate } from "@/lib/template";
 import { evaluateFormula } from "@/lib/formula";
 import { submitExercise } from "./actions";
+import { LightbulbIcon, SparkleIcon, PlusIcon, XIcon, ArrowRightIcon } from "@/components/icons";
 
 type Answers = Record<string, unknown>;
+
+const fieldClass =
+  "mt-1 w-full rounded-lg border border-[var(--sails-border)] bg-[var(--background)] px-3 py-2 text-sm text-[var(--foreground)] transition-shadow duration-150 placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--sails-blue)]/40 focus:border-[var(--sails-blue)]";
+const cardClass = "rounded-xl border border-[var(--sails-border)] bg-[var(--background)] p-4 shadow-[var(--shadow-soft)]";
+
+const ANSWERABLE_TYPES = new Set([
+  "input_text",
+  "input_list",
+  "input_table",
+  "select",
+  "rank",
+  "calculator",
+]);
 
 function Prose({
   body,
   data,
+  variant,
 }: {
   body: string;
   data: { context: Record<string, unknown>; answers: Record<string, unknown> };
+  variant: "teach" | "example";
 }) {
   const rendered = renderTemplate(body, data);
+  const Icon = variant === "teach" ? LightbulbIcon : SparkleIcon;
   return (
-    <div className="whitespace-pre-wrap text-sm leading-relaxed text-neutral-700">{rendered.trim()}</div>
+    <div
+      className={`flex gap-3 rounded-xl border p-4 ${
+        variant === "teach"
+          ? "border-[var(--sails-border)] bg-[var(--background)]"
+          : "border-[var(--sails-blue-light)] bg-[var(--sails-blue-light)]/50"
+      }`}
+    >
+      <Icon className="mt-0.5 h-5 w-5 shrink-0 text-[var(--sails-blue)]" />
+      <div className="whitespace-pre-wrap text-sm leading-relaxed text-muted">{rendered.trim()}</div>
+    </div>
+  );
+}
+
+function RemoveButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Remove"
+      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 hover:bg-red-50 hover:text-red-600"
+    >
+      <XIcon className="h-3.5 w-3.5" />
+    </button>
+  );
+}
+
+function AddButton({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-dashed border-[var(--sails-border)] px-3.5 py-1.5 text-sm font-medium text-[var(--sails-blue)] transition-colors duration-150 hover:bg-[var(--sails-blue-light)]"
+    >
+      <PlusIcon className="h-3.5 w-3.5" />
+      {label}
+    </button>
   );
 }
 
@@ -34,14 +86,14 @@ function InputTextField({
   const Tag = step.multiline ? "textarea" : "input";
   return (
     <label className="block">
-      <span className="text-sm font-medium text-[var(--sails-navy)]">{step.label}</span>
+      <span className="text-sm font-medium text-[var(--foreground)]">{step.label}</span>
       <Tag
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
         placeholder={step.placeholder}
         maxLength={step.max_length}
         rows={step.multiline ? 4 : undefined}
-        className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+        className={fieldClass}
       />
     </label>
   );
@@ -65,33 +117,25 @@ function InputListField({
 
   return (
     <fieldset>
-      <legend className="text-sm font-medium text-[var(--sails-navy)]">{step.label}</legend>
-      <div className="mt-2 flex flex-col gap-4">
+      <legend className="text-sm font-medium text-[var(--foreground)]">{step.label}</legend>
+      <div className="mt-2 flex flex-col gap-3">
         {rows.map((row, i) => (
-          <div key={i} className="rounded-md border border-neutral-200 p-3">
+          <div key={i} className={cardClass}>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-neutral-400">
+              <span className="rounded-full bg-[var(--sails-gray)] px-2 py-0.5 text-xs font-medium text-muted">
                 {i + 1} of {step.max}
               </span>
-              {rows.length > step.min && (
-                <button
-                  type="button"
-                  onClick={() => onChange(rows.filter((_, idx) => idx !== i))}
-                  className="text-xs text-neutral-400 hover:text-red-600"
-                >
-                  Remove
-                </button>
-              )}
+              {rows.length > step.min && <RemoveButton onClick={() => onChange(rows.filter((_, idx) => idx !== i))} />}
             </div>
-            <div className="mt-2 flex flex-col gap-2">
+            <div className="mt-3 flex flex-col gap-2.5">
               {step.fields.map((field) => (
                 <label key={field.name} className="block">
-                  <span className="text-xs text-neutral-500">{field.label}</span>
+                  <span className="text-xs font-medium text-muted">{field.label}</span>
                   {field.type === "select" ? (
                     <select
                       value={row[field.name] ?? ""}
                       onChange={(e) => updateRow(i, field.name, e.target.value)}
-                      className="mt-1 w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
+                      className={fieldClass}
                     >
                       <option value="" disabled>
                         Select...
@@ -107,14 +151,14 @@ function InputListField({
                       value={row[field.name] ?? ""}
                       onChange={(e) => updateRow(i, field.name, e.target.value)}
                       rows={2}
-                      className="mt-1 w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
+                      className={fieldClass}
                     />
                   ) : (
                     <input
                       type={field.type === "number" ? "number" : "text"}
                       value={row[field.name] ?? ""}
                       onChange={(e) => updateRow(i, field.name, e.target.value)}
-                      className="mt-1 w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
+                      className={fieldClass}
                     />
                   )}
                 </label>
@@ -123,15 +167,7 @@ function InputListField({
           </div>
         ))}
       </div>
-      {rows.length < step.max && (
-        <button
-          type="button"
-          onClick={() => onChange([...rows, {}])}
-          className="mt-2 text-sm text-[var(--sails-blue)] hover:underline"
-        >
-          + Add another
-        </button>
-      )}
+      {rows.length < step.max && <AddButton onClick={() => onChange([...rows, {}])} label="Add another" />}
     </fieldset>
   );
 }
@@ -157,7 +193,7 @@ function InputTableField({
 
     return (
       <fieldset>
-        <legend className="text-sm font-medium text-[var(--sails-navy)]">{step.label}</legend>
+        <legend className="text-sm font-medium text-[var(--foreground)]">{step.label}</legend>
         <div className="mt-2 flex flex-col gap-3">
           {step.fixed_rows.map((fr) => {
             const row = (rows.find((r) => r.row_id === fr.row_id) ?? { row_id: fr.row_id }) as Record<
@@ -165,12 +201,10 @@ function InputTableField({
               string
             >;
             return (
-              <div key={fr.row_id} className="rounded-md border border-neutral-200 p-3">
-                <div className="text-sm font-medium">{fr.label}</div>
-                {fr.reference_text && (
-                  <div className="text-xs text-neutral-400">{fr.reference_text}</div>
-                )}
-                <div className="mt-2 flex flex-col gap-2">
+              <div key={fr.row_id} className={cardClass}>
+                <div className="text-sm font-medium text-[var(--foreground)]">{fr.label}</div>
+                {fr.reference_text && <div className="mt-0.5 text-xs text-muted">{fr.reference_text}</div>}
+                <div className="mt-2.5 flex flex-col gap-2">
                   {step.columns.map((col) => (
                     <textarea
                       key={col.name}
@@ -178,7 +212,7 @@ function InputTableField({
                       onChange={(e) => updateRow(fr.row_id, col.name, e.target.value)}
                       placeholder={col.label}
                       rows={2}
-                      className="w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
+                      className={fieldClass}
                     />
                   ))}
                 </div>
@@ -197,19 +231,13 @@ function InputTableField({
   }
   return (
     <fieldset>
-      <legend className="text-sm font-medium text-[var(--sails-navy)]">{step.label}</legend>
+      <legend className="text-sm font-medium text-[var(--foreground)]">{step.label}</legend>
       <div className="mt-2 flex flex-col gap-3">
         {rows.map((row, i) => (
-          <div key={i} className="rounded-md border border-neutral-200 p-3">
-            {rows.length > step.min && (
-              <button
-                type="button"
-                onClick={() => onChange(rows.filter((_, idx) => idx !== i))}
-                className="float-right text-xs text-neutral-400 hover:text-red-600"
-              >
-                Remove
-              </button>
-            )}
+          <div key={i} className={cardClass}>
+            <div className="flex items-center justify-end">
+              {rows.length > step.min && <RemoveButton onClick={() => onChange(rows.filter((_, idx) => idx !== i))} />}
+            </div>
             <div className="flex flex-col gap-2">
               {step.columns.map((col) => (
                 <input
@@ -217,22 +245,14 @@ function InputTableField({
                   value={row[col.name] ?? ""}
                   onChange={(e) => updateDynRow(i, col.name, e.target.value)}
                   placeholder={col.label}
-                  className="w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
+                  className={fieldClass}
                 />
               ))}
             </div>
           </div>
         ))}
       </div>
-      {rows.length < step.max && (
-        <button
-          type="button"
-          onClick={() => onChange([...rows, {}])}
-          className="mt-2 text-sm text-[var(--sails-blue)] hover:underline"
-        >
-          + Add row
-        </button>
-      )}
+      {rows.length < step.max && <AddButton onClick={() => onChange([...rows, {}])} label="Add row" />}
     </fieldset>
   );
 }
@@ -250,10 +270,13 @@ function SelectField({
     const selected = Array.isArray(value) ? value : [];
     return (
       <fieldset>
-        <legend className="text-sm font-medium text-[var(--sails-navy)]">{step.label}</legend>
-        <div className="mt-2 flex flex-col gap-1">
+        <legend className="text-sm font-medium text-[var(--foreground)]">{step.label}</legend>
+        <div className="mt-2 flex flex-col gap-1.5">
           {step.options.map((opt) => (
-            <label key={opt.value} className="flex items-center gap-2 text-sm">
+            <label
+              key={opt.value}
+              className="flex items-center gap-2.5 rounded-lg border border-[var(--sails-border)] px-3 py-2 text-sm has-checked:border-[var(--sails-blue)] has-checked:bg-[var(--sails-blue-light)]"
+            >
               <input
                 type="checkbox"
                 checked={selected.includes(opt.value)}
@@ -264,6 +287,7 @@ function SelectField({
                       : selected.filter((v) => v !== opt.value)
                   )
                 }
+                className="h-4 w-4 accent-[var(--sails-blue)]"
               />
               {opt.label}
             </label>
@@ -274,12 +298,8 @@ function SelectField({
   }
   return (
     <label className="block">
-      <span className="text-sm font-medium text-[var(--sails-navy)]">{step.label}</span>
-      <select
-        value={typeof value === "string" ? value : ""}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-      >
+      <span className="text-sm font-medium text-[var(--foreground)]">{step.label}</span>
+      <select value={typeof value === "string" ? value : ""} onChange={(e) => onChange(e.target.value)} className={fieldClass}>
         <option value="" disabled>
           Select...
         </option>
@@ -326,23 +346,34 @@ function RankField({
 
   return (
     <fieldset>
-      <legend className="text-sm font-medium text-[var(--sails-navy)]">{step.label}</legend>
-      <ol className="mt-2 flex flex-col gap-1">
+      <legend className="text-sm font-medium text-[var(--foreground)]">{step.label}</legend>
+      <ol className="mt-2 flex flex-col gap-1.5">
         {order.map((val, i) => {
           const item = items.find((it) => it.value === val);
           return (
             <li
               key={val}
-              className="flex items-center justify-between rounded-md border border-neutral-200 px-3 py-2 text-sm"
+              className="flex items-center justify-between rounded-lg border border-[var(--sails-border)] bg-[var(--background)] px-3.5 py-2.5 text-sm shadow-[var(--shadow-soft)]"
             >
-              <span>
-                {i + 1}. {item?.label ?? val}
+              <span className="text-[var(--foreground)]">
+                <span className="mr-2 text-muted">{i + 1}.</span>
+                {item?.label ?? val}
               </span>
               <span className="flex gap-1">
-                <button type="button" onClick={() => move(i, -1)} className="text-neutral-400 hover:text-[var(--sails-blue)]">
+                <button
+                  type="button"
+                  onClick={() => move(i, -1)}
+                  aria-label="Move up"
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-muted hover:bg-[var(--sails-gray)] hover:text-[var(--sails-blue)]"
+                >
                   ↑
                 </button>
-                <button type="button" onClick={() => move(i, 1)} className="text-neutral-400 hover:text-[var(--sails-blue)]">
+                <button
+                  type="button"
+                  onClick={() => move(i, 1)}
+                  aria-label="Move down"
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-muted hover:bg-[var(--sails-gray)] hover:text-[var(--sails-blue)]"
+                >
                   ↓
                 </button>
               </span>
@@ -374,26 +405,28 @@ function CalculatorField({
   }
 
   return (
-    <fieldset>
-      <legend className="text-sm font-medium text-[var(--sails-navy)]">{step.label}</legend>
-      <div className="mt-2 flex flex-col gap-2">
+    <fieldset className={cardClass}>
+      <legend className="text-sm font-medium text-[var(--foreground)]">{step.label}</legend>
+      <div className="mt-2 flex flex-col gap-2.5">
         {step.inputs.map((input) => (
-          <label key={input.name} className="flex items-center justify-between gap-3 text-sm">
+          <label key={input.name} className="flex items-center justify-between gap-3 text-sm text-[var(--foreground)]">
             <span>
-              {input.label} {input.unit && <span className="text-neutral-400">({input.unit})</span>}
+              {input.label} {input.unit && <span className="text-muted">({input.unit})</span>}
             </span>
             <input
               type="number"
               value={inputs[input.name] ?? ""}
               onChange={(e) => onChange({ ...inputs, [input.name]: parseFloat(e.target.value) || 0 })}
-              className="w-32 rounded-md border border-neutral-300 px-2 py-1 text-sm"
+              className="w-32 rounded-lg border border-[var(--sails-border)] bg-[var(--background)] px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--sails-blue)]/40"
             />
           </label>
         ))}
       </div>
-      <div className="mt-3 rounded-md bg-[var(--sails-gray)] p-3 text-sm">
-        <span className="font-medium">{step.output.label}: </span>
-        {error ? <span className="text-red-600">{error}</span> : (result ?? 0).toLocaleString()}
+      <div className="mt-3 flex items-center justify-between rounded-lg bg-[var(--sails-blue-light)] px-3.5 py-2.5 text-sm">
+        <span className="font-medium text-[var(--foreground)]">{step.output.label}</span>
+        <span className="text-lg font-semibold text-[var(--sails-blue)]">
+          {error ? <span className="text-sm text-red-600">{error}</span> : (result ?? 0).toLocaleString()}
+        </span>
       </div>
     </fieldset>
   );
@@ -428,14 +461,38 @@ export function ExerciseForm({
 
   const templateData = { context, answers };
 
+  const answerableSteps = exercise.steps.filter((s) => ANSWERABLE_TYPES.has(s.type) && "id" in s);
+  const answeredCount = answerableSteps.filter((s) => {
+    const v = answers[(s as { id: string }).id];
+    return Array.isArray(v) ? v.length > 0 : v != null && v !== "";
+  }).length;
+  const progressPct = answerableSteps.length ? Math.round((answeredCount / answerableSteps.length) * 100) : 0;
+
   return (
-    <div className="mt-6 flex flex-col gap-6">
+    <div className="mt-6 flex flex-col gap-5">
+      {answerableSteps.length > 1 && (
+        <div className="sticky top-16 z-10 rounded-full border border-[var(--sails-border)] bg-[var(--background)]/90 px-4 py-2 text-xs text-muted shadow-[var(--shadow-soft)] backdrop-blur-sm">
+          <div className="flex items-center justify-between">
+            <span>
+              {answeredCount} of {answerableSteps.length} answered
+            </span>
+            <span>{progressPct}%</span>
+          </div>
+          <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-[var(--sails-gray)]">
+            <div
+              className="h-full rounded-full bg-[var(--sails-blue)] transition-all duration-300 ease-[var(--ease-out)]"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {exercise.steps.map((step, i) => {
         const key = `${step.type}-${i}`;
         switch (step.type) {
           case "teach":
           case "example":
-            return <Prose key={key} body={step.body} data={templateData} />;
+            return <Prose key={key} body={step.body} data={templateData} variant={step.type} />;
           case "input_text":
             return (
               <InputTextField
@@ -494,15 +551,19 @@ export function ExerciseForm({
           case "ai_review":
           case "ai_generate":
             return (
-              <div key={key} className="rounded-md border border-dashed border-neutral-300 p-3 text-sm text-neutral-400">
+              <div
+                key={key}
+                className="flex items-center gap-2 rounded-xl border border-dashed border-[var(--sails-border)] p-4 text-sm text-muted"
+              >
+                <SparkleIcon className="h-4 w-4 shrink-0" />
                 AI-assisted step — available in Phase 2.
               </div>
             );
           case "output_preview":
             return (
-              <div key={key} className="rounded-md bg-[var(--sails-gray)] p-3 text-sm">
-                <span className="font-medium text-[var(--sails-navy)]">This will update: </span>
-                {exercise.writes.map((w) => w.to).join(", ") || "nothing yet"}
+              <div key={key} className="rounded-xl bg-[var(--sails-blue-light)] p-4 text-sm">
+                <span className="font-medium text-[var(--foreground)]">This will update: </span>
+                <span className="text-muted">{exercise.writes.map((w) => w.to).join(", ") || "nothing yet"}</span>
               </div>
             );
           default:
@@ -514,9 +575,16 @@ export function ExerciseForm({
         type="button"
         onClick={handleSubmit}
         disabled={isPending}
-        className="self-start rounded-full bg-[var(--sails-blue)] px-6 py-2.5 text-sm font-medium text-white hover:bg-[var(--sails-navy)] disabled:opacity-50"
+        className="group inline-flex w-fit items-center gap-2 rounded-full bg-[var(--sails-blue)] px-6 py-2.5 text-sm font-medium text-white shadow-[var(--shadow-soft)] transition-all duration-200 ease-[var(--ease-out)] hover:bg-[var(--sails-navy)] hover:shadow-[var(--shadow-soft-hover)] disabled:opacity-50"
       >
-        {isPending ? "Saving..." : "Complete exercise"}
+        {isPending ? (
+          "Saving..."
+        ) : (
+          <>
+            Complete exercise
+            <ArrowRightIcon className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+          </>
+        )}
       </button>
     </div>
   );

@@ -11,10 +11,10 @@ export function ContextField({ fieldKey, value }: { fieldKey: string; value: unk
 
   if (!editing) {
     return (
-      <div className="flex items-start justify-between gap-4 border-b border-neutral-100 py-2">
+      <div className="flex items-start justify-between gap-4 border-b border-[var(--sails-border)] py-2">
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-neutral-400">{fieldKey}</div>
-          <div className="truncate text-sm text-[var(--sails-navy)]">
+          <div className="text-xs font-medium text-muted">{fieldKey}</div>
+          <div className="truncate text-sm text-[var(--foreground)]">
             {typeof value === "string" ? value : JSON.stringify(value)}
           </div>
         </div>
@@ -29,13 +29,13 @@ export function ContextField({ fieldKey, value }: { fieldKey: string; value: unk
   }
 
   return (
-    <div className="border-b border-neutral-100 py-2">
-      <div className="text-xs font-medium text-neutral-400">{fieldKey}</div>
+    <div className="border-b border-[var(--sails-border)] py-2">
+      <div className="text-xs font-medium text-muted">{fieldKey}</div>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={Math.min(10, text.split("\n").length + 1)}
-        className="mt-1 w-full rounded-md border border-neutral-300 px-2 py-1.5 font-mono text-xs"
+        className="mt-1 w-full rounded-md border border-[var(--sails-border)] px-2 py-1.5 font-mono text-xs"
       />
       {error && <div className="mt-1 text-xs text-red-600">{error}</div>}
       <div className="mt-1 flex gap-2">
@@ -62,7 +62,7 @@ export function ContextField({ fieldKey, value }: { fieldKey: string; value: unk
             setEditing(false);
             setError(null);
           }}
-          className="rounded-full px-3 py-1 text-xs text-neutral-500 hover:bg-neutral-100"
+          className="rounded-full px-3 py-1 text-xs text-muted hover:bg-neutral-100"
         >
           Cancel
         </button>

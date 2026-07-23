@@ -5,40 +5,81 @@
  * (sails-advisory/CLAUDE.md hard rules): navy, accent blue, white, light
  * gray, Playfair Display + Inter. Same brand, different product — a
  * founder opening the platform right after the marketing site shouldn't
- * feel like they landed somewhere else.
+ * feel like they landed somewhere else. Extended here with a soft-UI
+ * depth scale (shadows/radius/motion) layered on top of those same colors
+ * — never new brand colors, just more considered use of the existing ones.
  */
 :root {
   --sails-navy: #0d1b4b;
+  --sails-navy-light: #16296e;
   --sails-blue: #2b60be;
+  --sails-blue-light: #eef3fc;
   --sails-gray: #f4f5f7;
+  --sails-border: #e5e7ec;
   --background: #ffffff;
+  --background-tint: #fafbfd;
   --foreground: var(--sails-navy);
+  --muted: #5b6472;
+  --faint: #a3aab8;
+
+  --shadow-soft: 0 1px 2px rgba(13, 27, 75, 0.04), 0 4px 12px rgba(13, 27, 75, 0.06);
+  --shadow-soft-hover: 0 2px 4px rgba(13, 27, 75, 0.06), 0 12px 24px rgba(13, 27, 75, 0.1);
+  --radius-card: 14px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-sails-navy: var(--sails-navy);
+  --color-sails-navy-light: var(--sails-navy-light);
   --color-sails-blue: var(--sails-blue);
+  --color-sails-blue-light: var(--sails-blue-light);
   --color-sails-gray: var(--sails-gray);
+  --color-sails-border: var(--sails-border);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
   --font-sans: var(--font-inter);
   --font-serif: var(--font-playfair);
 }
 
 :root[data-theme="dark"] {
   --background: #0a0f24;
-  --foreground: #ededed;
+  --background-tint: #0d1329;
+  --foreground: #e8eaf3;
+  --muted: #a4acc4;
+  --faint: #5b6280;
+  --sails-gray: #131a35;
+  --sails-border: #232b4a;
+  --sails-blue-light: #16213f;
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.2), 0 4px 16px rgba(0, 0, 0, 0.3);
+  --shadow-soft-hover: 0 2px 4px rgba(0, 0, 0, 0.25), 0 16px 32px rgba(0, 0, 0, 0.4);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --background: #0a0f24;
-    --foreground: #ededed;
+    --background-tint: #0d1329;
+    --foreground: #e8eaf3;
+    --muted: #a4acc4;
+    --faint: #5b6280;
+    --sails-gray: #131a35;
+    --sails-border: #232b4a;
+    --sails-blue-light: #16213f;
+    --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.2), 0 4px 16px rgba(0, 0, 0, 0.3);
+    --shadow-soft-hover: 0 2px 4px rgba(0, 0, 0, 0.25), 0 16px 32px rgba(0, 0, 0, 0.4);
   }
 }
 
 body {
-  background: var(--background);
+  background: var(--background-tint);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

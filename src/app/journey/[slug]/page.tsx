@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-org";
@@ -5,6 +6,7 @@ import { loadExercises } from "@/lib/content/loader";
 import { readContext } from "@/lib/context/store";
 import { getOrCreateSession } from "@/lib/exercises/session";
 import { ExerciseForm } from "./ExerciseForm";
+import { ArrowRightIcon, CheckCircleIcon } from "@/components/icons";
 
 export default async function ExercisePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -21,15 +23,23 @@ export default async function ExercisePage({ params }: { params: Promise<{ slug:
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
-      <p className="text-sm text-neutral-400">{exercise.time_estimate}</p>
-      <h1 className="font-[family-name:var(--font-serif)] text-2xl font-semibold text-[var(--sails-navy)]">
+      <Link
+        href="/journey"
+        className="inline-flex items-center gap-1 text-sm text-muted transition-colors duration-150 hover:text-[var(--sails-blue)]"
+      >
+        <ArrowRightIcon className="h-3.5 w-3.5 rotate-180" />
+        Journey
+      </Link>
+      <p className="mt-4 text-sm text-muted">{exercise.time_estimate}</p>
+      <h1 className="font-[family-name:var(--font-serif)] text-2xl font-semibold text-[var(--foreground)]">
         {exercise.title}
       </h1>
 
       {session.status === "completed" ? (
-        <p className="mt-6 rounded-lg bg-[var(--sails-gray)] p-4 text-sm text-[var(--sails-navy)]">
+        <div className="mt-6 flex items-center gap-3 rounded-xl bg-[var(--sails-blue-light)] p-4 text-sm text-[var(--foreground)]">
+          <CheckCircleIcon className="h-5 w-5 shrink-0 text-[var(--sails-blue)]" />
           You&apos;ve completed this exercise.
-        </p>
+        </div>
       ) : (
         <ExerciseForm
           exercise={exercise}
