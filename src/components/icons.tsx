@@ -155,3 +155,13 @@ export function LightbulbIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function AlertTriangleIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12 4.5l9 15.5H3z" />
+      <path d="M12 10v4" />
+      <circle cx="12" cy="17" r="0.75" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
