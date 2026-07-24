@@ -201,9 +201,32 @@ now both exercised live too (`process.stages`, `objections.objections`).
 Added namespace: `pain_tree.cost_of_inaction_estimate` (scalar) — see both
 `namespace-dictionary.ts` and the external contract doc.
 
+**AI suggestions — pipeline built, unverified live** (`src/lib/ai/suggest.ts`,
+`AiSuggestPanel.tsx`). A new `suggest: {prompt_ref, count, reads}` block on
+`input_list`/dynamic-`input_table` steps drives a "Get AI suggestions" panel:
+calls Claude (model + prompt come from `content/prompts/*.md`, same frontmatter
+convention as `ai_review`) via a forced tool call for structured output, no
+free-form parsing, then each suggestion is a card with **Add** that drops it
+into the step's own editable rows — so it flows through the identical
+`writes` mapping as a manually-typed entry, no separate AI-output write path
+to keep in sync. Wired onto 5 exercises: `buyer-impact-areas`, `icp-segments`,
+`persona-builder`, `objection-bank-builder`, `process-stages-builder`. Model
+is `claude-opus-4-8` per every prompt file (not a per-feature choice — that's
+the house default absent an explicit ask for something cheaper/faster).
+
+Caught one real bug during verification: Next.js redacts thrown Server
+Action error messages to a generic digest in production builds, so a
+deliberately friendly "not configured yet" error never reached the client.
+Fixed by having `suggestForStep` return `{suggestions} | {error}` instead of
+throwing — confirmed live that the exact intended message now renders. This
+pattern (return, don't throw, for any Server Action error a user should
+read) is worth reusing for other actions doing free-form `throw new Error()`.
+
 Not done (Phase 2 remainder): `ai_review`/`ai_generate` step types (still
 render a placeholder), DOCX/PDF export. `ANTHROPIC_API_KEY` is not yet set
-anywhere — needed before any AI step can run. `rank` is the one step type
+anywhere — needed before any AI step, or the new AI-suggestions panel above,
+can run for real; verified live only up to that boundary (the panel's error
+state), not an actual generated suggestion. `rank` is the one step type
 still implemented-but-unseeded live.
 
 ## Hosting (once past Phase 0)
