@@ -5,7 +5,7 @@
 # textarea each in v1 rather than the string-array shape in the namespace
 # dictionary — same flattening tradeoff as icp-segments, noted there.
 slug: persona-builder
-schema_version: 1
+schema_version: 2
 title: "Build Your Buyer Personas"
 module: personas-buyer-roles
 tracks: [smb, mid-market]
@@ -54,6 +54,10 @@ steps:
           - { value: blocker, label: "Blocker" }
       - { name: cares_about, label: "What they care about", type: textarea }
       - { name: day_to_day_pains, label: "Day-to-day pains", type: textarea }
+    suggest:
+      prompt_ref: suggest-personas
+      count: 2
+      reads: [company.name, company.product_name, icp.segments, pain_tree.impact_areas]
 
   - type: output_preview
     shows_writes: true

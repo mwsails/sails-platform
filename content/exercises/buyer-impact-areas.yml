@@ -3,7 +3,7 @@
 # prove the round-trip: file -> content:validate -> listed in app
 # (Phase 0 accept criteria).
 slug: buyer-impact-areas
-schema_version: 1
+schema_version: 2
 title: "Your Buyer's Top 3-4 Impact Areas"
 module: messaging-foundation
 tracks: [smb, mid-market]
@@ -46,6 +46,10 @@ steps:
       - { name: who_feels_it, label: "Who feels it", type: text }
       - { name: metric_affected, label: "Metric affected", type: text }
       - { name: cost_if_ignored, label: "Cost if ignored", type: textarea }
+    suggest:
+      prompt_ref: suggest-impact-areas
+      count: 3
+      reads: [company.name, company.product_name, icp.segments, personas.personas]
 
   - type: ai_review
     prompt_ref: review-impact-areas

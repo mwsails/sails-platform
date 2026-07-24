@@ -52,6 +52,21 @@ const inputTextStep = z.object({
   max_length: z.number().int().positive().optional(),
 });
 
+/**
+ * Optional AI-suggestion companion for a list-shaped step (Exercise Schema
+ * extension for the AI-suggestions feature). `reads` is explicit — like
+ * ai_generate's own `reads` — so what context reaches the prompt is
+ * auditable from the YAML, not implicitly "everything the org has."
+ * Suggestions are never auto-written to context: the UI drops each one into
+ * the step's own editable rows, so it goes through the exact same
+ * `writes` mapping as a manually-typed entry (Exercise Schema §6/§9 spirit).
+ */
+const suggestConfig = z.object({
+  prompt_ref: z.string().min(1),
+  count: z.number().int().positive().default(3),
+  reads: z.array(contextKey).default([]),
+});
+
 const inputListStep = z.object({
   ...stepBaseFields,
   id: z.string().min(1),
@@ -60,6 +75,7 @@ const inputListStep = z.object({
   min: z.number().int().nonnegative(),
   max: z.number().int().positive(),
   fields: z.array(listField).min(1),
+  suggest: suggestConfig.optional(),
 });
 
 const inputTableStep = z.discriminatedUnion("row_mode", [
@@ -79,6 +95,7 @@ const inputTableStep = z.discriminatedUnion("row_mode", [
     columns: z.array(tableColumn).min(1),
     min: z.number().int().nonnegative(),
     max: z.number().int().positive(),
+    suggest: suggestConfig.optional(),
   }),
 ]);
 
@@ -197,3 +214,12 @@ export const moduleSchema = z.object({
   order: z.number().int().nonnegative(),
 });
 export type ModuleDef = z.infer<typeof moduleSchema>;
+
+/** Frontmatter schema for /content/prompts/*.md — see review-impact-areas.md for the shape. */
+export const promptFrontmatterSchema = z.object({
+  prompt_ref: z.string().min(1),
+  model: z.string().min(1),
+  max_tokens: z.number().int().positive(),
+});
+export type PromptFrontmatter = z.infer<typeof promptFrontmatterSchema>;
+export type PromptDef = PromptFrontmatter & { body: string };

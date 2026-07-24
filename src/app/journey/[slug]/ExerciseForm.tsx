@@ -6,6 +6,7 @@ import type { ExerciseDef, Step } from "@/lib/content/exercise-schema";
 import { renderTemplate } from "@/lib/template";
 import { evaluateFormula } from "@/lib/formula";
 import { submitExercise } from "./actions";
+import { AiSuggestPanel } from "./AiSuggestPanel";
 import { LightbulbIcon, SparkleIcon, PlusIcon, XIcon, ArrowRightIcon } from "@/components/icons";
 
 type Answers = Record<string, unknown>;
@@ -61,6 +62,22 @@ function RemoveButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+function isEmptyRow(row: Record<string, string>): boolean {
+  return Object.keys(row).length === 0 || Object.values(row).every((v) => !v);
+}
+
+/** Drops an AI suggestion into the first blank row, or appends if every row is already filled and there's room — so it lands in the exact same editable UI as a manually-typed row. */
+function addSuggestionToRows(
+  rows: Record<string, string>[],
+  item: Record<string, string>,
+  max: number
+): Record<string, string>[] {
+  const emptyIndex = rows.findIndex(isEmptyRow);
+  if (emptyIndex >= 0) return rows.map((r, i) => (i === emptyIndex ? item : r));
+  if (rows.length < max) return [...rows, item];
+  return rows;
+}
+
 function AddButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button
@@ -101,10 +118,12 @@ function InputTextField({
 
 function InputListField({
   step,
+  exerciseSlug,
   value,
   onChange,
 }: {
   step: Extract<Step, { type: "input_list" }>;
+  exerciseSlug: string;
   value: Record<string, string>[];
   onChange: (v: Record<string, string>[]) => void;
 }) {
@@ -118,6 +137,17 @@ function InputListField({
   return (
     <fieldset>
       <legend className="text-sm font-medium text-[var(--foreground)]">{step.label}</legend>
+      {step.suggest && (
+        <div className="mt-2">
+          <AiSuggestPanel
+            exerciseSlug={exerciseSlug}
+            stepId={step.id}
+            fields={step.fields}
+            existingItems={rows}
+            onAdd={(item) => onChange(addSuggestionToRows(rows, item, step.max))}
+          />
+        </div>
+      )}
       <div className="mt-2 flex flex-col gap-3">
         {rows.map((row, i) => (
           <div key={i} className={cardClass}>
@@ -174,10 +204,12 @@ function InputListField({
 
 function InputTableField({
   step,
+  exerciseSlug,
   value,
   onChange,
 }: {
   step: Extract<Step, { type: "input_table" }>;
+  exerciseSlug: string;
   value: Record<string, string>[];
   onChange: (v: Record<string, string>[]) => void;
 }) {
@@ -232,6 +264,17 @@ function InputTableField({
   return (
     <fieldset>
       <legend className="text-sm font-medium text-[var(--foreground)]">{step.label}</legend>
+      {step.suggest && (
+        <div className="mt-2">
+          <AiSuggestPanel
+            exerciseSlug={exerciseSlug}
+            stepId={step.id}
+            fields={step.columns}
+            existingItems={rows}
+            onAdd={(item) => onChange(addSuggestionToRows(rows, item, step.max))}
+          />
+        </div>
+      )}
       <div className="mt-2 flex flex-col gap-3">
         {rows.map((row, i) => (
           <div key={i} className={cardClass}>
@@ -523,6 +566,7 @@ export function ExerciseForm({
               <InputListField
                 key={key}
                 step={step}
+                exerciseSlug={exercise.slug}
                 value={(answers[step.id] as Record<string, string>[]) ?? []}
                 onChange={(v) => set(step.id, v)}
               />
@@ -532,6 +576,7 @@ export function ExerciseForm({
               <InputTableField
                 key={key}
                 step={step}
+                exerciseSlug={exercise.slug}
                 value={(answers[step.id] as Record<string, string>[]) ?? []}
                 onChange={(v) => set(step.id, v)}
               />

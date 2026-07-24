@@ -159,6 +159,23 @@ function validateExercise(
     }
   }
 
+  // Rule 8: input_list / dynamic input_table `suggest.prompt_ref` resolves, and
+  // `suggest.reads` keys are valid and non-reserved (same checks as top-level reads).
+  for (const step of data.steps) {
+    const suggest = (step as { suggest?: { prompt_ref: string; reads: string[] } }).suggest;
+    if (!suggest) continue;
+    if (!ctx.promptRefs.has(suggest.prompt_ref)) {
+      push(`step "${(step as { id: string }).id}" suggest.prompt_ref references missing prompt file "content/prompts/${suggest.prompt_ref}.md"`);
+    }
+    for (const key of suggest.reads) {
+      const r = resolveContextKey(key);
+      if (!r.ok) push(`invalid "suggest.reads" key: ${r.reason}`);
+      if (reservedNames.has(namespaceOf(key))) {
+        push(`suggest.reads references reserved Enterprise-track namespace "${namespaceOf(key)}" in key "${key}" — out of scope for v1 (plan §2)`);
+      }
+    }
+  }
+
   // Rule 9: schema_version never decreases vs. the previously committed version of this file.
   const prevVersion = previousCommittedSchemaVersion(file);
   if (prevVersion !== null && data.schema_version < prevVersion) {

@@ -1,7 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
 import { load as loadYaml } from "js-yaml";
-import { exerciseSchema, trackSchema, moduleSchema, type ExerciseDef, type TrackDef, type ModuleDef } from "./exercise-schema";
+import {
+  exerciseSchema,
+  trackSchema,
+  moduleSchema,
+  promptFrontmatterSchema,
+  type ExerciseDef,
+  type TrackDef,
+  type ModuleDef,
+  type PromptDef,
+} from "./exercise-schema";
 
 const CONTENT_ROOT = path.join(process.cwd(), "content");
 
@@ -50,4 +59,28 @@ export function loadModules(onError?: (err: LoadError) => void): { file: string;
 
 export function loadExercises(onError?: (err: LoadError) => void): { file: string; data: ExerciseDef }[] {
   return loadDir("exercises", exerciseSchema, onError);
+}
+
+const PROMPT_FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
+
+/** Prompt files are markdown with YAML frontmatter (prompt_ref/model/max_tokens), not YAML — a bespoke reader instead of loadDir's schema.parse-a-whole-file shape. */
+export function loadPrompts(onError?: (err: LoadError) => void): { file: string; data: PromptDef }[] {
+  const full = path.join(CONTENT_ROOT, "prompts");
+  if (!fs.existsSync(full)) return [];
+  const out: { file: string; data: PromptDef }[] = [];
+  for (const name of fs.readdirSync(full)) {
+    if (!name.endsWith(".md")) continue;
+    const file = path.join("prompts", name);
+    const raw = fs.readFileSync(path.join(full, name), "utf8");
+    try {
+      const match = raw.match(PROMPT_FRONTMATTER_RE);
+      if (!match) throw new Error("missing --- frontmatter block");
+      const frontmatter = promptFrontmatterSchema.parse(loadYaml(match[1]));
+      out.push({ file, data: { ...frontmatter, body: match[2].trim() } });
+    } catch (err) {
+      if (onError) onError({ file, message: err instanceof Error ? err.message : String(err) });
+      else throw err;
+    }
+  }
+  return out;
 }

@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-org";
 import { loadExercises } from "@/lib/content/loader";
-import { writeContext } from "@/lib/context/store";
+import { writeContext, readContext } from "@/lib/context/store";
 import { recommendTrack } from "@/lib/tracks/recommend";
+import { generateSuggestions } from "@/lib/ai/suggest";
 
 export async function submitExercise(
   sessionId: string,
@@ -55,4 +56,34 @@ export async function submitExercise(
 
   revalidatePath("/journey");
   revalidatePath("/profile");
+}
+
+/** Powers the AI-suggestions panel on input_list / dynamic input_table steps — see AiSuggestPanel. */
+export async function suggestForStep(
+  exerciseSlug: string,
+  stepId: string,
+  existingItems: Record<string, string>[]
+) {
+  const supabase = await createClient();
+  const user = await getCurrentUser(supabase);
+  if (!user) throw new Error("not authenticated");
+
+  const exercise = loadExercises().find((e) => e.data.slug === exerciseSlug)?.data;
+  if (!exercise) throw new Error(`unknown exercise "${exerciseSlug}"`);
+
+  const step = exercise.steps.find((s) => "id" in s && s.id === stepId);
+  if (!step || !("suggest" in step) || !step.suggest) {
+    throw new Error(`step "${stepId}" has no AI suggestions configured`);
+  }
+
+  const fields = step.type === "input_list" ? step.fields : step.type === "input_table" ? step.columns : [];
+  const context = await readContext(supabase, user.orgId, step.suggest.reads);
+
+  return generateSuggestions({
+    promptRef: step.suggest.prompt_ref,
+    count: step.suggest.count,
+    context,
+    existing: existingItems,
+    fields: fields.map((f) => ({ name: f.name, label: f.label })),
+  });
 }

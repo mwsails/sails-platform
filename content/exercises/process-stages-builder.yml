@@ -1,5 +1,5 @@
 slug: process-stages-builder
-schema_version: 1
+schema_version: 2
 title: "Define Your Sales Process Stages"
 module: sales-process-fundamentals
 tracks: [smb, mid-market]
@@ -47,6 +47,10 @@ steps:
       - { name: entry_criteria, label: "Entry criteria", type: text }
       - { name: exit_criteria, label: "Exit criteria", type: text }
       - { name: typical_duration, label: "Typical duration", type: text }
+    suggest:
+      prompt_ref: suggest-process-stages
+      count: 2
+      reads: [company.name, company.product_name, company.cycle_length_days, company.stakeholder_count]
 
   - type: output_preview
     shows_writes: true

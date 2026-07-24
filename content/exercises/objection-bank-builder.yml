@@ -1,5 +1,5 @@
 slug: objection-bank-builder
-schema_version: 1
+schema_version: 2
 title: "Build Your Objection Bank"
 module: sales-process-fundamentals
 tracks: [smb, mid-market]
@@ -57,6 +57,10 @@ steps:
           - { value: other, label: "Other" }
       - { name: reframe, label: "Reframe", type: textarea }
       - { name: talk_track, label: "Talk track", type: textarea }
+    suggest:
+      prompt_ref: suggest-objections
+      count: 3
+      reads: [company.name, company.product_name, icp.segments, personas.personas]
 
   - type: output_preview
     shows_writes: true

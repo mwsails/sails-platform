@@ -7,7 +7,7 @@
 # of which earns its cost for a Phase 1 MVP. Namespace dictionary should be
 # read as directional intent here, not a runtime guarantee.
 slug: icp-segments
-schema_version: 1
+schema_version: 2
 title: "Define Your ICP Segment"
 module: icp-tiering
 tracks: [smb, mid-market]
@@ -47,6 +47,10 @@ steps:
       - { name: industry, label: "Industry / vertical", type: text }
       - { name: size_range, label: "Company size", type: text }
       - { name: geography, label: "Geography", type: text }
+    suggest:
+      prompt_ref: suggest-icp-segments
+      count: 2
+      reads: [company.name, company.product_name]
 
   - type: output_preview
     shows_writes: true
