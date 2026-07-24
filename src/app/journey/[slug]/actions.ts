@@ -58,32 +58,43 @@ export async function submitExercise(
   revalidatePath("/profile");
 }
 
-/** Powers the AI-suggestions panel on input_list / dynamic input_table steps — see AiSuggestPanel. */
+/**
+ * Powers the AI-suggestions panel on input_list / dynamic input_table steps
+ * (AiSuggestPanel). Returns a result object rather than throwing — Next.js
+ * redacts thrown Server Action error messages in production builds down to
+ * a generic "An error occurred" digest, so an expected, user-facing error
+ * (no API key configured, bad prompt_ref) would never reach the panel.
+ */
 export async function suggestForStep(
   exerciseSlug: string,
   stepId: string,
   existingItems: Record<string, string>[]
-) {
-  const supabase = await createClient();
-  const user = await getCurrentUser(supabase);
-  if (!user) throw new Error("not authenticated");
+): Promise<{ suggestions: Record<string, string>[] } | { error: string }> {
+  try {
+    const supabase = await createClient();
+    const user = await getCurrentUser(supabase);
+    if (!user) return { error: "not authenticated" };
 
-  const exercise = loadExercises().find((e) => e.data.slug === exerciseSlug)?.data;
-  if (!exercise) throw new Error(`unknown exercise "${exerciseSlug}"`);
+    const exercise = loadExercises().find((e) => e.data.slug === exerciseSlug)?.data;
+    if (!exercise) return { error: `unknown exercise "${exerciseSlug}"` };
 
-  const step = exercise.steps.find((s) => "id" in s && s.id === stepId);
-  if (!step || !("suggest" in step) || !step.suggest) {
-    throw new Error(`step "${stepId}" has no AI suggestions configured`);
+    const step = exercise.steps.find((s) => "id" in s && s.id === stepId);
+    if (!step || !("suggest" in step) || !step.suggest) {
+      return { error: `step "${stepId}" has no AI suggestions configured` };
+    }
+
+    const fields = step.type === "input_list" ? step.fields : step.type === "input_table" ? step.columns : [];
+    const context = await readContext(supabase, user.orgId, step.suggest.reads);
+
+    const suggestions = await generateSuggestions({
+      promptRef: step.suggest.prompt_ref,
+      count: step.suggest.count,
+      context,
+      existing: existingItems,
+      fields: fields.map((f) => ({ name: f.name, label: f.label })),
+    });
+    return { suggestions };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
   }
-
-  const fields = step.type === "input_list" ? step.fields : step.type === "input_table" ? step.columns : [];
-  const context = await readContext(supabase, user.orgId, step.suggest.reads);
-
-  return generateSuggestions({
-    promptRef: step.suggest.prompt_ref,
-    count: step.suggest.count,
-    context,
-    existing: existingItems,
-    fields: fields.map((f) => ({ name: f.name, label: f.label })),
-  });
 }

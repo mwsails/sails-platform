@@ -27,13 +27,13 @@ export function AiSuggestPanel({
   function fetchSuggestions() {
     setError(null);
     startTransition(async () => {
-      try {
-        const result = await suggestForStep(exerciseSlug, stepId, existingItems);
-        setSuggestions(result);
-        setAdded(new Set());
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+      const result = await suggestForStep(exerciseSlug, stepId, existingItems);
+      if ("error" in result) {
+        setError(result.error);
+        return;
       }
+      setSuggestions(result.suggestions);
+      setAdded(new Set());
     });
   }
 
