@@ -1,7 +1,7 @@
 ---
 prompt_ref: suggest-icp-segments
 model: claude-opus-4-8
-max_tokens: 1024
+max_tokens: 4096
 ---
 
 You are a SAILS Advisory sales coach helping a founder define their ICP
