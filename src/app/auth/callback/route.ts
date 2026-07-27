@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// PKCE magic-link callback: Supabase's verify endpoint redirects here with
-// `?code=...` after the user clicks the emailed link (or after
-// admin.generateLink()'s action_link is visited, used for testing without a
-// real inbox). `params` is a promise per Next.js 15+ route handler convention.
+// Magic-link callback. Self-serve sign-in (supabase.auth.signInWithOtp from
+// the browser) registers a PKCE code_challenge, so Supabase's verify
+// endpoint redirects here with `?code=...`, exchanged server-side below.
+// Links minted server-side via the Admin API (admin.inviteUserByEmail,
+// admin.generateLink — used for the real invite-provisioning flow in
+// src/app/admin/actions.ts, and for testing without a real inbox) have no
+// registered code_challenge, so Supabase instead redirects with tokens in
+// the URL fragment (`#access_token=...`), which never reaches the server.
+// Since a fragment survives a same-origin redirect in the browser, hand
+// those off to /auth/hash-callback, a client page that can read it.
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
@@ -16,7 +22,8 @@ export async function GET(request: Request) {
     if (!error) {
       return NextResponse.redirect(`${origin}${next}`);
     }
+    return NextResponse.redirect(`${origin}/auth/auth-code-error`);
   }
 
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`);
+  return NextResponse.redirect(`${origin}/auth/hash-callback?next=${encodeURIComponent(next)}`);
 }
