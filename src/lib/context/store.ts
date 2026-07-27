@@ -106,6 +106,10 @@ export async function writeContext(
 ) {
   for (const mapping of writes) {
     const newValue = resolveAnswerValue(answers, mapping.from);
+    // An unanswered step resolves to undefined — skip rather than insert a
+    // null into a NOT NULL column. A step going unanswered isn't a context
+    // fact to record, and previously this threw and crashed the whole page.
+    if (newValue === undefined) continue;
     let finalValue: unknown;
 
     if (mapping.mode === "replace") {

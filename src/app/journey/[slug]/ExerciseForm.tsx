@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ExerciseDef, Step } from "@/lib/content/exercise-schema";
 import { renderTemplate } from "@/lib/template";
@@ -450,7 +450,17 @@ function CalculatorField({
   // `result` rides along on the stored answer (not just rendered) so a
   // `writes` mapping can target `answers.<stepId>.result` the same way it
   // targets any other step's field — otherwise the computed number could
-  // never leave the page.
+  // never leave the page. That only happens on `onChange` below, so an
+  // untouched calculator (defaults left as-is) never populates `answers` at
+  // all — the page shows a real computed number but submit sends nothing
+  // for it. Seed `answers` with the default-computed value once on mount so
+  // what's on screen is always what gets saved.
+  useEffect(() => {
+    if (Object.keys(value).length === 0 && !error) {
+      onChange({ ...inputs, result: result ?? 0 });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   function updateInput(name: string, raw: string) {
     const newInputs = { ...inputs, [name]: parseFloat(raw) || 0 };
     let newResult = 0;
