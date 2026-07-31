@@ -44,9 +44,24 @@ export default async function JourneyPage() {
       "company.recommended_tier",
       "company.motion",
       "team.has_sales_manager",
+      "metrics.diagnosis",
     ]),
   ]);
   const completedSlugs = new Set((sessions ?? []).map((s) => s.exercise_slug));
+
+  // metrics.diagnosis is append-only (Exercise Schema §5) — the most recent
+  // entry per metric is what's actionable now, older ones are history.
+  const diagnoses = (context["metrics.diagnosis"] as
+    | { metric: string; cause: string; confidence: string; reasoning: string }[]
+    | undefined) ?? [];
+  const latestOppRateDiagnosis = [...diagnoses].reverse().find((d) => d.metric === "opp_rate");
+  // Only "qualification_handoff" has a built exercise to point at today
+  // (process-stages-builder) — the other two causes are real diagnoses with
+  // nowhere to send the rep yet (TODOS.md #1). Saying so honestly beats
+  // linking somewhere that doesn't address it.
+  const CAUSE_NEXT_STEP: Record<string, { slug: string; label: string } | undefined> = {
+    qualification_handoff: { slug: "process-stages-builder", label: "Define your pipeline stages" },
+  };
 
   const orientationModule = modules.find((m) => m.data.slug === "orientation-diagnostic");
   const diagnosticDone = completedSlugs.has("onboarding-diagnostic");
@@ -159,6 +174,34 @@ export default async function JourneyPage() {
             </Link>{" "}
             page (<code>company.recommended_tier</code>).
           </p>
+        </div>
+      )}
+
+      {latestOppRateDiagnosis && (
+        <div className="mt-4 rounded-2xl border border-[var(--sails-border)] bg-[var(--background)] p-4 shadow-[var(--shadow-soft)]">
+          <div className="flex items-center gap-2">
+            <SparkleIcon className="h-4 w-4 shrink-0 text-[var(--sails-blue)]" />
+            <h2 className="text-sm font-medium text-[var(--foreground)]">
+              Your opportunity rate — diagnosed as {latestOppRateDiagnosis.cause.replaceAll("_", " ")}
+            </h2>
+            <span className="ml-auto text-xs text-muted">
+              {latestOppRateDiagnosis.confidence} confidence
+            </span>
+          </div>
+          <p className="mt-2 text-sm leading-relaxed text-muted">{latestOppRateDiagnosis.reasoning}</p>
+          {CAUSE_NEXT_STEP[latestOppRateDiagnosis.cause] ? (
+            <Link
+              href={`/journey/${CAUSE_NEXT_STEP[latestOppRateDiagnosis.cause]!.slug}`}
+              className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-[var(--sails-blue)] hover:underline"
+            >
+              {CAUSE_NEXT_STEP[latestOppRateDiagnosis.cause]!.label}
+              <ChevronRightIcon className="h-3.5 w-3.5" />
+            </Link>
+          ) : (
+            <p className="mt-2 text-xs text-muted">
+              No dedicated exercise for this yet — noted for the next build wave.
+            </p>
+          )}
         </div>
       )}
 
