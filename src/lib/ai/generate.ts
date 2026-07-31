@@ -63,7 +63,16 @@ export async function generateContent(opts: {
   const toolUse = response.content.find((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
   if (!toolUse) throw new Error("model did not return structured content");
 
-  const parsed = toolUse.input as Record<string, string>;
+  // The tool schema declares every field as `string`, but that's a request,
+  // not a guarantee — coerce defensively rather than trust the model's JSON
+  // shape matches, since a non-string value here would otherwise reach a
+  // controlled <input value={...}> in AiGenerateField with no guard.
+  const raw = toolUse.input as Record<string, unknown>;
+  const parsed: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    parsed[key] = typeof value === "string" ? value : value == null ? "" : JSON.stringify(value);
+  }
+
   const missing = opts.fields.filter((f) => !parsed[f.name]);
   if (missing.length > 0) {
     throw new Error(
