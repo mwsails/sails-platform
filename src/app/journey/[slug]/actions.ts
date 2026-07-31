@@ -7,6 +7,7 @@ import { loadExercises } from "@/lib/content/loader";
 import { writeContext, readContext } from "@/lib/context/store";
 import { recommendTrack } from "@/lib/tracks/recommend";
 import { generateSuggestions } from "@/lib/ai/suggest";
+import { generateContent } from "@/lib/ai/generate";
 
 export async function submitExercise(
   sessionId: string,
@@ -94,6 +95,45 @@ export async function suggestForStep(
       fields: fields.map((f) => ({ name: f.name, label: f.label })),
     });
     return { suggestions };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/**
+ * Powers the ai_generate step renderer (AiGenerateField). Same
+ * return-not-throw shape as suggestForStep, and the same reason: Next.js
+ * redacts thrown Server Action errors to a generic digest in production.
+ * Never writes anything — the generated value only reaches context if the
+ * user keeps/edits it and submits the exercise, same as any other step's
+ * answer (Exercise Schema §6/§9, CLAUDE.md rule 5).
+ */
+export async function generateForStep(
+  exerciseSlug: string,
+  stepId: string
+): Promise<{ content: Record<string, string> } | { error: string }> {
+  try {
+    const supabase = await createClient();
+    const user = await getCurrentUser(supabase);
+    if (!user) return { error: "not authenticated" };
+
+    const exercise = loadExercises().find((e) => e.data.slug === exerciseSlug)?.data;
+    if (!exercise) return { error: `unknown exercise "${exerciseSlug}"` };
+
+    const step = exercise.steps.find((s) => "id" in s && s.id === stepId);
+    if (!step || step.type !== "ai_generate") {
+      return { error: `step "${stepId}" is not an ai_generate step` };
+    }
+
+    const context = await readContext(supabase, user.orgId, step.reads ?? []);
+    const fields = step.fields ?? [{ name: "content", label: "Content" }];
+
+    const content = await generateContent({
+      promptRef: step.prompt_ref,
+      context,
+      fields: fields.map((f) => ({ name: f.name, label: f.label })),
+    });
+    return { content };
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) };
   }

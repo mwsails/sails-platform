@@ -7,6 +7,7 @@ import { renderTemplate } from "@/lib/template";
 import { evaluateFormula } from "@/lib/formula";
 import { submitExercise } from "./actions";
 import { AiSuggestPanel } from "./AiSuggestPanel";
+import { AiGenerateField } from "./AiGenerateField";
 import { LightbulbIcon, SparkleIcon, PlusIcon, XIcon, ArrowRightIcon } from "@/components/icons";
 
 type Answers = Record<string, unknown>;
@@ -22,6 +23,7 @@ const ANSWERABLE_TYPES = new Set([
   "select",
   "rank",
   "calculator",
+  "ai_generate",
 ]);
 
 function Prose({
@@ -619,8 +621,21 @@ export function ExerciseForm({
                 onChange={(v) => set(step.id, v)}
               />
             );
+          case "ai_generate": {
+            const fields = step.fields ?? [{ name: "content", label: "Content", type: "textarea" as const }];
+            return (
+              <AiGenerateField
+                key={key}
+                exerciseSlug={exercise.slug}
+                stepId={step.id}
+                label={fields.length === 1 && fields[0].name === "content" ? "Generated content" : "Diagnosis"}
+                fields={fields}
+                value={(answers[step.id] as Record<string, string>) ?? {}}
+                onChange={(v) => set(step.id, v)}
+              />
+            );
+          }
           case "ai_review":
-          case "ai_generate":
             return (
               <div
                 key={key}

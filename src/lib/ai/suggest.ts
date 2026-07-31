@@ -62,6 +62,15 @@ export async function generateSuggestions(opts: {
     tool_choice: { type: "tool", name: "submit_suggestions" },
   });
 
+  // A truncated response (max_tokens hit mid-tool-call) previously fell
+  // through to `parsed.suggestions ?? []` below and silently returned an
+  // empty list, indistinguishable from "the model genuinely had nothing to
+  // suggest." Checked explicitly so the panel shows a real error instead —
+  // see generate.ts's doc comment, this is the same failure class.
+  if (response.stop_reason === "max_tokens") {
+    throw new Error("The model ran out of room generating suggestions — try again, or ask an admin to raise max_tokens.");
+  }
+
   const toolUse = response.content.find((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
   if (!toolUse) throw new Error("model did not return structured suggestions");
 

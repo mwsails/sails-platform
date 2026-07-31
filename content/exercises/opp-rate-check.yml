@@ -1,0 +1,69 @@
+# First half of the opp_rate diagnostic slice. Captures the metric itself
+# plus three self-report signals a second exercise (opp-rate-diagnosis)
+# reads to generate a cause. Same "write here, read there" pattern as
+# icp-segments -> persona-builder — an ai_generate step can't read
+# not-yet-submitted answers from its own exercise, only committed context.
+slug: opp-rate-check
+schema_version: 1
+title: "Check Your Opportunity Rate"
+module: sales-process-fundamentals
+tracks: [smb, mid-market]
+time_estimate: 5m
+intent: development
+
+reads: []
+requires: []
+
+writes:
+  - from: answers.opp_rate_value
+    to: metrics.actuals.opp_rate
+    mode: replace
+  - from: answers.quantifies_impact
+    to: metrics.opp_rate_signals.quantifies_impact
+    mode: replace
+  - from: answers.single_threaded
+    to: metrics.opp_rate_signals.single_threaded
+    mode: replace
+  - from: answers.handoff_gap
+    to: metrics.opp_rate_signals.handoff_gap
+    mode: replace
+
+steps:
+  - type: teach
+    body: |
+      Opportunity rate is what share of your meetings or discovery calls
+      turn into a real opportunity, not just a "let me think about it."
+      A low number almost never has one cause — it could be who you're
+      talking to, how deep the conversation goes, or who else is in the
+      room. The next exercise diagnoses which one, using your answers here.
+
+  - id: opp_rate_value
+    type: input_text
+    label: "What share of your meetings turn into a real opportunity? (as a percentage, e.g. 25)"
+    placeholder: "25"
+
+  - id: quantifies_impact
+    type: select
+    label: "Do you consistently walk out of discovery with a number attached to the problem (cost, time, lost revenue)?"
+    options:
+      - { value: "yes", label: "Yes, consistently" }
+      - { value: "sometimes", label: "Sometimes" }
+      - { value: "no", label: "Rarely or never" }
+
+  - id: single_threaded
+    type: select
+    label: "Are most of these calls with just one person, with no one else looped in?"
+    options:
+      - { value: "yes", label: "Yes, usually just one person" }
+      - { value: "no", label: "No, usually more than one" }
+
+  - id: handoff_gap
+    type: select
+    label: "If someone else books the meeting for you (a BDR, a referral), is there a clean handoff of what they already learned?"
+    options:
+      - { value: "yes", label: "Yes, I get real context" }
+      - { value: "no", label: "No, I'm starting cold" }
+      - { value: "n/a", label: "N/A — I book my own meetings" }
+
+  - type: output_preview
+    shows_writes: true
