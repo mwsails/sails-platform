@@ -1,14 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+
+function SigningIn() {
+  return (
+    <main className="mx-auto max-w-md px-6 py-24 text-center">
+      <p className="text-sm text-muted">Signing you in...</p>
+    </main>
+  );
+}
 
 // Implicit-flow half of /auth/callback (see the comment there): reads
 // access_token/refresh_token off the URL fragment left by an Admin-API-minted
 // link (invite emails, or admin.generateLink() for testing) and establishes
 // the session client-side, since fragments never reach the server.
-export default function HashCallbackPage() {
+function HashCallback() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -29,9 +37,15 @@ export default function HashCallbackPage() {
     });
   }, [router, searchParams]);
 
+  return <SigningIn />;
+}
+
+// useSearchParams() opts the page out of static rendering unless it's wrapped
+// in Suspense — without this, `next build` fails prerendering this route.
+export default function HashCallbackPage() {
   return (
-    <main className="mx-auto max-w-md px-6 py-24 text-center">
-      <p className="text-sm text-muted">Signing you in...</p>
-    </main>
+    <Suspense fallback={<SigningIn />}>
+      <HashCallback />
+    </Suspense>
   );
 }
