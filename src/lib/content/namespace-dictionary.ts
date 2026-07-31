@@ -220,6 +220,36 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
     }),
   },
 
+  metrics: {
+    // v1 ships exactly one metric (opp_rate — meetings/discovery calls that
+    // convert to a real opportunity). Modeled as a namespace rather than a
+    // flat company.* field because it's the first of what the diagnostic
+    // engine will eventually track several of (set_rate, keep_rate,
+    // close_rate, arpa), and diagnosis[] already needs to be per-metric.
+    actuals: obj({
+      opp_rate: scalar,
+    }),
+    // Self-report signals feeding the opp_rate diagnosis (Discovery-quality
+    // proxies, not a full 5-gate scorecard yet — see TODOS.md #1). A second
+    // exercise reads this committed object to generate a diagnosis, same
+    // "write in exercise A, read in exercise B" pattern as icp-segments ->
+    // persona-builder.
+    opp_rate_signals: obj({
+      quantifies_impact: scalar, // "yes" | "sometimes" | "no"
+      single_threaded: scalar, // "yes" | "no"
+      handoff_gap: scalar, // "yes" | "no" | "n/a"
+    }),
+    // Append-only diagnosis history (Exercise Schema §5 append mode) — a
+    // re-diagnosis adds a new entry rather than overwriting, so a future
+    // coaching view can show "diagnosed as X twice, still unresolved."
+    diagnosis: arrayOf({
+      metric: scalar,
+      cause: scalar,
+      confidence: scalar,
+      reasoning: scalar,
+    }),
+  },
+
   team: {
     hiring_profile: obj({
       must_haves: arrayOfScalar,
