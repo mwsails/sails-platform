@@ -158,6 +158,12 @@ const aiGenerateStep = z.object({
   type: z.literal("ai_generate"),
   prompt_ref: z.string().min(1),
   reads: z.array(contextKey).optional(),
+  // Optional structured-output shape, reusing the same field type list() steps
+  // already use. Omitted -> the step generates a single free-text string.
+  // Present -> the model returns one object matching these fields, shown as
+  // an editable form (same "AI proposes, human edits, submit writes" flow as
+  // `suggest`) rather than a single textarea.
+  fields: z.array(listField).min(1).optional(),
 });
 
 const outputPreviewStep = z.object({
