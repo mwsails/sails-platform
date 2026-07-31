@@ -1,0 +1,58 @@
+# Second half of the opp_rate diagnostic slice. Reads opp-rate-check's
+# committed answers, generates a ranked cause via ai_generate, and only
+# writes it to metrics.diagnosis once the rep has seen and can edit it
+# (Exercise Schema §6/§9, CLAUDE.md rule 5 — no exceptions).
+slug: opp-rate-diagnosis
+schema_version: 1
+title: "Diagnose Your Opportunity Rate"
+module: sales-process-fundamentals
+tracks: [smb, mid-market]
+time_estimate: 5m
+intent: development
+
+reads:
+  [
+    metrics.actuals.opp_rate,
+    metrics.opp_rate_signals.quantifies_impact,
+    metrics.opp_rate_signals.single_threaded,
+    metrics.opp_rate_signals.handoff_gap,
+  ]
+requires:
+  [
+    metrics.actuals.opp_rate,
+    metrics.opp_rate_signals.quantifies_impact,
+    metrics.opp_rate_signals.single_threaded,
+    metrics.opp_rate_signals.handoff_gap,
+  ]
+
+writes:
+  - from: answers.diagnosed_cause
+    to: metrics.diagnosis
+    mode: append
+
+steps:
+  - type: teach
+    body: |
+      Based on what you just told us, here's a first read on what's most
+      likely holding your opportunity rate back. This is a draft, not a
+      verdict — read it, push back on it, edit it until it actually
+      matches what you're seeing, then save it.
+
+  - id: diagnosed_cause
+    type: ai_generate
+    prompt_ref: diagnose-opp-rate
+    reads:
+      [
+        metrics.actuals.opp_rate,
+        metrics.opp_rate_signals.quantifies_impact,
+        metrics.opp_rate_signals.single_threaded,
+        metrics.opp_rate_signals.handoff_gap,
+      ]
+    fields:
+      - { name: metric, label: "Metric", type: text }
+      - { name: cause, label: "Diagnosed cause", type: text }
+      - { name: confidence, label: "Confidence", type: text }
+      - { name: reasoning, label: "Reasoning", type: textarea }
+
+  - type: output_preview
+    shows_writes: true
