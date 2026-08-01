@@ -4,7 +4,19 @@
  * markdown, then run our own AI extraction pass" step to keep in sync.
  * Verified live against the real API (docs.firecrawl.dev/features/scrape)
  * before wiring this in.
+ *
+ * `data.metadata` comes back on every scrape regardless of which `formats`
+ * were requested (confirmed live, not just from docs) — theme-color and
+ * og:image/favicon are structural page metadata, not content a schema-guided
+ * extraction reads off the page text, so known brand field names are
+ * special-cased to pull from there instead of asking the model for them.
  */
+const METADATA_FIELD_SOURCES: Record<string, (metadata: Record<string, unknown>) => string> = {
+  brand_primary_color: (m) => (typeof m["theme-color"] === "string" ? (m["theme-color"] as string) : ""),
+  brand_logo_url: (m) =>
+    typeof m.ogImage === "string" ? (m.ogImage as string) : typeof m.favicon === "string" ? (m.favicon as string) : "",
+};
+
 export async function scrapeAndExtract(opts: {
   url: string;
   fields: { name: string; label: string }[];
@@ -14,18 +26,27 @@ export async function scrapeAndExtract(opts: {
     throw new Error("Scraping isn't configured yet — ask an admin to set FIRECRAWL_API_KEY.");
   }
 
-  const schema = {
-    type: "object",
-    properties: Object.fromEntries(opts.fields.map((f) => [f.name, { type: "string", description: f.label }])),
-    required: opts.fields.map((f) => f.name),
-  };
+  const schemaFields = opts.fields.filter((f) => !(f.name in METADATA_FIELD_SOURCES));
+  const metadataFields = opts.fields.filter((f) => f.name in METADATA_FIELD_SOURCES);
+
+  const formats: unknown[] = ["markdown"]; // ensures data.metadata is populated even if schemaFields is empty
+  if (schemaFields.length > 0) {
+    formats.push({
+      type: "json",
+      schema: {
+        type: "object",
+        properties: Object.fromEntries(schemaFields.map((f) => [f.name, { type: "string", description: f.label }])),
+        required: schemaFields.map((f) => f.name),
+      },
+    });
+  }
 
   let res: Response;
   try {
     res = await fetch("https://api.firecrawl.dev/v2/scrape", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ url: opts.url, formats: [{ type: "json", schema }] }),
+      body: JSON.stringify({ url: opts.url, formats }),
     });
   } catch {
     throw new Error("Couldn't reach the scraper — check the URL and try again, or fill this in manually.");
@@ -39,16 +60,23 @@ export async function scrapeAndExtract(opts: {
     );
   }
 
-  const body = (await res.json()) as { success?: boolean; data?: { json?: Record<string, unknown> } };
-  if (!body.success || !body.data?.json) {
+  const body = (await res.json()) as {
+    success?: boolean;
+    data?: { json?: Record<string, unknown>; metadata?: Record<string, unknown> };
+  };
+  if (!body.success || !body.data) {
     throw new Error("Couldn't extract anything useful from that page — try a different URL or fill this in manually.");
   }
 
-  const raw = body.data.json;
   const parsed: Record<string, string> = {};
-  for (const f of opts.fields) {
-    const v = raw[f.name];
+  const rawJson = body.data.json ?? {};
+  for (const f of schemaFields) {
+    const v = rawJson[f.name];
     parsed[f.name] = typeof v === "string" ? v : "";
+  }
+  const metadata = body.data.metadata ?? {};
+  for (const f of metadataFields) {
+    parsed[f.name] = METADATA_FIELD_SOURCES[f.name](metadata);
   }
   return parsed;
 }
