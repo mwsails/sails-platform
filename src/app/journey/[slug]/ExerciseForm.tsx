@@ -8,6 +8,7 @@ import { evaluateFormula } from "@/lib/formula";
 import { submitExercise } from "./actions";
 import { AiSuggestPanel } from "./AiSuggestPanel";
 import { AiGenerateField } from "./AiGenerateField";
+import { UrlScrapeField } from "./UrlScrapeField";
 import { LightbulbIcon, SparkleIcon, PlusIcon, XIcon, ArrowRightIcon } from "@/components/icons";
 
 type Answers = Record<string, unknown>;
@@ -24,6 +25,7 @@ const ANSWERABLE_TYPES = new Set([
   "rank",
   "calculator",
   "ai_generate",
+  "url_scrape",
 ]);
 
 function Prose({
@@ -661,6 +663,18 @@ export function ExerciseForm({
               />
             );
           }
+          case "url_scrape":
+            return (
+              <UrlScrapeField
+                key={key}
+                exerciseSlug={exercise.slug}
+                stepId={step.id}
+                label={step.label}
+                fields={step.fields}
+                value={(answers[step.id] as Record<string, string>) ?? {}}
+                onChange={(v) => set(step.id, v)}
+              />
+            );
           case "ai_review":
             return (
               <div
