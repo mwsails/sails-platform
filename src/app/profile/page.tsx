@@ -21,6 +21,7 @@ import type { ComponentType, SVGProps } from "react";
 
 const NAMESPACE_LABELS: Record<string, string> = {
   company: "Company",
+  org: "Brand",
   icp: "ICP",
   personas: "Personas",
   pain_tree: "Pain Tree",

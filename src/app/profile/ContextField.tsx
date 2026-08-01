@@ -32,12 +32,34 @@ export function ContextField({
 
   if (!editing) {
     const label = optionLabel(options, value);
+    const isColor = fieldKey === "org.brand.primary_color" && typeof value === "string" && /^#[0-9a-fA-F]{3,8}$/.test(value);
+    const isLogo = fieldKey === "org.brand.logo_url" && typeof value === "string" && value.length > 0;
     return (
       <div className="group flex items-start justify-between gap-4 border-b border-[var(--sails-border)] py-2.5 last:border-b-0">
         <div className="min-w-0 flex-1">
           <div className="font-mono text-xs text-muted">{fieldKey}</div>
-          <div className="mt-0.5 truncate text-sm text-[var(--foreground)]">
-            {label ?? (typeof value === "string" ? value : JSON.stringify(value))}
+          <div className="mt-1 flex items-center gap-2">
+            {isColor && (
+              <span
+                className="h-5 w-5 shrink-0 rounded-full border border-[var(--sails-border)]"
+                style={{ background: value as string }}
+                title={value as string}
+              />
+            )}
+            {isLogo && (
+              // eslint-disable-next-line @next/next/no-img-element -- external, unknown-domain logo URLs; next/image would need per-domain config we don't control
+              <img
+                src={value as string}
+                alt="Logo"
+                className="h-5 w-5 shrink-0 rounded border border-[var(--sails-border)] object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+            )}
+            <div className="min-w-0 truncate text-sm text-[var(--foreground)]">
+              {label ?? (typeof value === "string" ? value : JSON.stringify(value))}
+            </div>
           </div>
         </div>
         <button
