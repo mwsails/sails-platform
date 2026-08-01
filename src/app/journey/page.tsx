@@ -60,6 +60,21 @@ export default async function JourneyPage() {
     single_threading: { slug: "champion-strength-check", label: "Check your champion's strength" },
     qualification_handoff: { slug: "process-stages-builder", label: "Define your pipeline stages" },
   };
+  // Keeps rep-coachable behavior gaps (fixable by the individual in their
+  // next calls) visually distinct from team/process gaps (fixable only by
+  // changing how the team operates) so the two never read as the same kind
+  // of fix. Derived from `cause`, not stored on the diagnosis record or
+  // asked of the model: the causes are already a closed, prompt-defined
+  // enum (see diagnose-opp-rate.md), so this is a deterministic lookup,
+  // same precedent as CAUSE_NEXT_STEP above and recommendTrack's tier score.
+  const CAUSE_LEVEL: Record<string, { label: string; framing: string } | undefined> = {
+    discovery_depth: { label: "Individual coaching", framing: "This is on you to fix in your next calls." },
+    single_threading: { label: "Individual coaching", framing: "This is on you to fix in your next calls." },
+    qualification_handoff: {
+      label: "Team process",
+      framing: "This is a process gap worth raising with your team, not something to fix solo.",
+    },
+  };
 
   const orientationModule = modules.find((m) => m.data.slug === "orientation-diagnostic");
   const diagnosticDone = completedSlugs.has("onboarding-diagnostic");
@@ -180,13 +195,21 @@ export default async function JourneyPage() {
           <div className="flex items-center gap-2">
             <SparkleIcon className="h-4 w-4 shrink-0 text-[var(--sails-blue)]" />
             <h2 className="text-sm font-medium text-[var(--foreground)]">
-              Your opportunity rate — diagnosed as {latestOppRateDiagnosis.cause.replaceAll("_", " ")}
+              Opportunity rate diagnosis: {latestOppRateDiagnosis.cause.replaceAll("_", " ")}
             </h2>
             <span className="ml-auto text-xs text-muted">
               {latestOppRateDiagnosis.confidence} confidence
             </span>
           </div>
+          {CAUSE_LEVEL[latestOppRateDiagnosis.cause] && (
+            <span className="mt-1.5 inline-block rounded-full bg-[var(--sails-gray)] px-2 py-0.5 text-[11px] font-medium text-muted">
+              {CAUSE_LEVEL[latestOppRateDiagnosis.cause]!.label}
+            </span>
+          )}
           <p className="mt-2 text-sm leading-relaxed text-muted">{latestOppRateDiagnosis.reasoning}</p>
+          {CAUSE_LEVEL[latestOppRateDiagnosis.cause] && (
+            <p className="mt-1 text-xs text-muted">{CAUSE_LEVEL[latestOppRateDiagnosis.cause]!.framing}</p>
+          )}
           {CAUSE_NEXT_STEP[latestOppRateDiagnosis.cause] ? (
             <Link
               href={`/journey/${CAUSE_NEXT_STEP[latestOppRateDiagnosis.cause]!.slug}`}
