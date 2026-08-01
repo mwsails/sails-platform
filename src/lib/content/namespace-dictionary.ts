@@ -57,6 +57,20 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
     recommended_tier: scalar,
   },
 
+  // Visual identity, separate from company.* (which is business-identity
+  // data). Named org.brand.* to match what TODOS.md #4 (asset generation)
+  // already anticipated. Sourced from scrape metadata (theme-color,
+  // og:image/favicon), not the AI-schema-extraction path — see
+  // METADATA_FIELD_SOURCES in firecrawl.ts — since color/logo are
+  // structural page metadata, not something a content-extraction schema
+  // reads off the page text.
+  org: {
+    brand: obj({
+      primary_color: scalar,
+      logo_url: scalar,
+    }),
+  },
+
   // Who is answering, not what the business is — orthogonal to company.*.
   // A sales leader and an individual rep at the same company should see
   // different depth; someone with extensive experience should be able to
