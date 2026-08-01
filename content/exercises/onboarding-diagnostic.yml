@@ -13,6 +13,12 @@
 # opp_rate Diagnostic Intake Layer gates on (see opp-rate-check.yml), so a
 # zero-to-one founder never gets asked for a conversion rate on zero
 # meetings.
+#
+# company_name/product_name/category/pricing_model are seeded via
+# url_scrape (company_scrape step) instead of blank text fields — "never
+# show a blank field" per the plan's §0.3 exercise pattern. A skipped or
+# failed scrape leaves the same editable form empty, degrading to exactly
+# the old manual-entry behavior with no special-casing needed.
 slug: onboarding-diagnostic
 schema_version: 3
 title: "Your Sales Diagnostic"
@@ -31,11 +37,17 @@ writes:
   - from: answers.respondent_sales_experience
     to: respondent.sales_experience
     mode: replace
-  - from: answers.company_name
+  - from: answers.company_scrape.company_name
     to: company.name
     mode: replace
-  - from: answers.product_name
+  - from: answers.company_scrape.product_name
     to: company.product_name
+    mode: replace
+  - from: answers.company_scrape.category
+    to: company.category
+    mode: replace
+  - from: answers.company_scrape.pricing_model
+    to: company.pricing_model
     mode: replace
   - from: answers.motion
     to: company.motion
@@ -96,15 +108,14 @@ steps:
       - { value: some, label: "Some — I've sold before, informally or early-career" }
       - { value: extensive, label: "Extensive — years of quota-carrying or sales-leadership experience" }
 
-  - id: company_name
-    type: input_text
-    label: "Company name"
-    placeholder: "Acme Inc."
-
-  - id: product_name
-    type: input_text
-    label: "What do you sell, in one sentence?"
-    placeholder: "A POS system for regional convenience stores"
+  - id: company_scrape
+    type: url_scrape
+    label: "Your company website"
+    fields:
+      - { name: company_name, label: "Company name", type: text }
+      - { name: product_name, label: "What you sell, in one sentence", type: textarea }
+      - { name: category, label: "Category (e.g. \"B2B sales consulting\", \"POS software\")", type: text }
+      - { name: pricing_model, label: "Pricing model (subscription, usage-based, one-time, or hybrid)", type: text }
 
   - id: motion
     type: select

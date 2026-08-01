@@ -8,6 +8,7 @@ import { writeContext, readContext } from "@/lib/context/store";
 import { recommendTrack } from "@/lib/tracks/recommend";
 import { generateSuggestions } from "@/lib/ai/suggest";
 import { generateContent } from "@/lib/ai/generate";
+import { scrapeAndExtract } from "@/lib/scrape/firecrawl";
 
 export async function submitExercise(
   sessionId: string,
@@ -132,6 +133,48 @@ export async function generateForStep(
       promptRef: step.prompt_ref,
       context,
       fields: fields.map((f) => ({ name: f.name, label: f.label })),
+    });
+    return { content };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/**
+ * Powers the url_scrape step renderer. Same return-not-throw shape and same
+ * "never writes directly" contract as generateForStep — the scraped/edited
+ * value only reaches context if the user submits the exercise.
+ */
+export async function scrapeForStep(
+  exerciseSlug: string,
+  stepId: string,
+  url: string
+): Promise<{ content: Record<string, string> } | { error: string }> {
+  try {
+    const supabase = await createClient();
+    const user = await getCurrentUser(supabase);
+    if (!user) return { error: "not authenticated" };
+
+    const exercise = loadExercises().find((e) => e.data.slug === exerciseSlug)?.data;
+    if (!exercise) return { error: `unknown exercise "${exerciseSlug}"` };
+
+    const step = exercise.steps.find((s) => "id" in s && s.id === stepId);
+    if (!step || step.type !== "url_scrape") {
+      return { error: `step "${stepId}" is not a url_scrape step` };
+    }
+
+    const trimmed = url.trim();
+    if (!trimmed) return { error: "Enter a website URL first." };
+    const normalized = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    try {
+      new URL(normalized);
+    } catch {
+      return { error: "That doesn't look like a valid URL." };
+    }
+
+    const content = await scrapeAndExtract({
+      url: normalized,
+      fields: step.fields.map((f) => ({ name: f.name, label: f.label })),
     });
     return { content };
   } catch (e) {

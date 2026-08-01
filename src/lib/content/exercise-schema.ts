@@ -167,6 +167,21 @@ const aiGenerateStep = z.object({
   fields: z.array(listField).min(1).optional(),
 });
 
+/**
+ * Fetches a URL, extracts structured fields via Firecrawl's schema-guided
+ * scrape (src/lib/scrape/firecrawl.ts), then shows the result as an editable
+ * form — same "AI/scrape output always routes through an edit step before
+ * it can be written" contract as ai_generate (Exercise Schema §6/§9,
+ * CLAUDE.md rule 5), just fed by a scrape instead of a model call.
+ */
+const urlScrapeStep = z.object({
+  ...stepBaseFields,
+  id: z.string().min(1),
+  type: z.literal("url_scrape"),
+  label: z.string().min(1),
+  fields: z.array(listField).min(1),
+});
+
 const outputPreviewStep = z.object({
   ...stepBaseFields,
   type: z.literal("output_preview"),
@@ -183,6 +198,7 @@ export const stepSchema = z.discriminatedUnion("type", [
   selectStep,
   rankStep,
   calculatorStep,
+  urlScrapeStep,
   aiReviewStep,
   aiGenerateStep,
   outputPreviewStep,
