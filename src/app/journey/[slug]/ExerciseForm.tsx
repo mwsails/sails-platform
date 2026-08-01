@@ -9,6 +9,7 @@ import { submitExercise } from "./actions";
 import { AiSuggestPanel } from "./AiSuggestPanel";
 import { AiGenerateField } from "./AiGenerateField";
 import { UrlScrapeField } from "./UrlScrapeField";
+import { QuizField } from "./QuizField";
 import { LightbulbIcon, SparkleIcon, PlusIcon, XIcon, ArrowRightIcon } from "@/components/icons";
 
 type Answers = Record<string, unknown>;
@@ -26,6 +27,7 @@ const ANSWERABLE_TYPES = new Set([
   "calculator",
   "ai_generate",
   "url_scrape",
+  "quiz",
 ]);
 
 function Prose({
@@ -672,6 +674,16 @@ export function ExerciseForm({
                 label={step.label}
                 fields={step.fields}
                 value={(answers[step.id] as Record<string, string>) ?? {}}
+                onChange={(v) => set(step.id, v)}
+              />
+            );
+          case "quiz":
+            return (
+              <QuizField
+                key={key}
+                step={step}
+                data={templateData}
+                value={(answers[step.id] as string) ?? ""}
                 onChange={(v) => set(step.id, v)}
               />
             );
