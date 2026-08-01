@@ -181,4 +181,17 @@ function validateExercise(
   if (prevVersion !== null && data.schema_version < prevVersion) {
     push(`schema_version decreased from ${prevVersion} to ${data.schema_version}`);
   }
+
+  // Rule 10: quiz.correct, when literal (not a {{...}} template), must be one
+  // of that quiz's own options[].value. A templated `correct` (Awareness,
+  // graded against a prior ai_generate step's dynamic output) can't be
+  // checked at authoring time and is skipped.
+  for (const step of data.steps) {
+    if (step.type === "quiz" && !step.correct.includes("{{")) {
+      const validValues = new Set(step.options.map((o) => o.value));
+      if (!validValues.has(step.correct)) {
+        push(`quiz step "${step.id}" has correct: "${step.correct}", which is not one of its own options[].value`);
+      }
+    }
+  }
 }

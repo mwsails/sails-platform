@@ -1,0 +1,115 @@
+# Install/Know/Awareness for the LASER objection framework — the teaching
+# half of the Objections Playbook module. The first real IKAP build (see
+# the Journey Flow Remap working doc): Install = teach, Know = quiz (new
+# step type), Awareness = ai_generate (a scenario, grounded in their real
+# Foundation context) chained into a second quiz graded against whatever
+# the model generated, not a fixed answer.
+#
+# objection-bank-builder.yml (Practice) is deliberately unchanged — this
+# exercise doesn't feed it data, the connection is pedagogical sequencing
+# (learn LASER, then build your bank), enforced by `order` rendering this
+# ahead of it in the same module, not a reads/writes dependency.
+#
+# Content grounded directly in the real SAILS Playbook (Objection Handling
+# Framework section) — this is SAILS' own IP, not PclubFY26 material, so
+# unlike that source this one can be drawn from directly rather than
+# structure-only.
+slug: objection-framework
+schema_version: 1
+title: "Learn the LASER Objection Framework"
+module: sales-process-fundamentals
+tracks: [smb, mid-market]
+time_estimate: 10m
+intent: training
+order: 10
+
+reads: [icp.segments, personas.personas]
+requires: []
+
+writes:
+  - from: answers.awareness_scenario.scenario_text
+    to: rep.reinforcement_log
+    mode: append
+
+steps:
+  - type: teach
+    body: |
+      Most objections don't come from the buyer, they come from how you
+      sold. Skip real discovery, lead with the pitch too early, or assume
+      instead of ask, and objections pile up. Do discovery right and most
+      of them never surface. When one does, it's not a no, it's
+      information about what's still unresolved in the buyer's mind.
+
+  - type: teach
+    body: |
+      How you respond either builds trust or shuts the conversation down.
+      Push harder and the buyer resists harder. Get curious and they lean
+      in. You're not opposing them, you're solving the problem with them.
+      Buyers who feel like part of the solution move forward. Buyers who
+      feel convinced back out.
+
+  - type: teach
+    body: |
+      LASER: Listen, Acknowledge, Specify, Explore, Resolve. Five steps,
+      always in order, for any pushback. Listen means actually pause and
+      diagnose the type before reacting. Acknowledge means make them feel
+      heard before you do anything else. Specify narrows the objection,
+      the surface version is rarely the real one. Explore goes deeper,
+      open questions only. Resolve comes last, and only once you actually
+      know what you're resolving. Use "and," not "but," throughout, "but"
+      signals you're about to argue.
+
+  - id: know_check_1
+    type: quiz
+    label: "A prospect says 'I need to talk to my team.' What type of objection is this most likely?"
+    options:
+      - { value: smoke_screen, label: "Smoke Screen" }
+      - { value: concern, label: "Concern" }
+      - { value: sales_objection, label: "Sales Objection" }
+      - { value: condition, label: "Condition" }
+    correct: smoke_screen
+    explanation: "On its own, this is usually a Smoke Screen, a polite way to end the call without saying the real objection out loud. Don't treat it as real until you've verified it. The move is Specify: ask what specifically they'd be weighing with their team."
+
+  - id: know_check_2
+    type: quiz
+    label: "A prospect says 'Our budget cycle doesn't open until next quarter.' What type of objection is this most likely?"
+    options:
+      - { value: smoke_screen, label: "Smoke Screen" }
+      - { value: concern, label: "Concern" }
+      - { value: sales_objection, label: "Sales Objection" }
+      - { value: condition, label: "Condition" }
+    correct: condition
+    explanation: "If it's genuinely true, this is a Condition, a real constraint you can't argue away. Don't push on value they may already believe. Acknowledge it and Resolve around timing, lock in scope now so there's no delay when the window opens."
+
+  - id: awareness_scenario
+    type: ai_generate
+    prompt_ref: generate-objection-scenario
+    reads: [icp.segments, personas.personas]
+    fields:
+      - { name: scenario_text, label: "The scenario", type: textarea }
+      - name: correct_step
+        label: "Which LASER step did the rep skip"
+        type: select
+        options:
+          - { value: listen, label: "Listen" }
+          - { value: acknowledge, label: "Acknowledge" }
+          - { value: specify, label: "Specify" }
+          - { value: explore, label: "Explore" }
+          - { value: resolve, label: "Resolve" }
+      - { name: reasoning, label: "Why", type: textarea }
+
+  - id: awareness_check
+    type: quiz
+    label: "Which LASER step did the rep skip in this call?"
+    scenario: "{{answers.awareness_scenario.scenario_text}}"
+    options:
+      - { value: listen, label: "Listen" }
+      - { value: acknowledge, label: "Acknowledge" }
+      - { value: specify, label: "Specify" }
+      - { value: explore, label: "Explore" }
+      - { value: resolve, label: "Resolve" }
+    correct: "{{answers.awareness_scenario.correct_step}}"
+    explanation: "{{answers.awareness_scenario.reasoning}}"
+
+  - type: output_preview
+    shows_writes: true

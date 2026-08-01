@@ -109,6 +109,34 @@ const selectStep = z.object({
   multiple: z.boolean().default(false),
 });
 
+/**
+ * A graded multiple-choice check — the Know (and Awareness, paired with a
+ * preceding ai_generate step) mechanic in the IKAP teaching loop
+ * (Install/Know/Awareness/Practice). Renders like `select` but shows
+ * immediate correct/incorrect feedback + explanation client-side, no
+ * server round-trip, so it doesn't need a new submission pattern.
+ *
+ * `scenario`, `correct`, and `explanation` all support the same
+ * `{{answers.step_id.field}}` interpolation as `teach`/`example` bodies —
+ * needed so an Awareness quiz can reference a prior ai_generate step's
+ * dynamically-generated scenario and grade against whatever answer that
+ * generation produced, not a fixed value.
+ */
+const quizStep = z.object({
+  ...stepBaseFields,
+  id: z.string().min(1),
+  type: z.literal("quiz"),
+  label: z.string().min(1),
+  scenario: z.string().optional(),
+  options: z.array(z.object({ value: z.string(), label: z.string() })).min(2),
+  correct: z.string().min(1),
+  explanation: z.string().min(1),
+});
+// A literal (non-templated) `correct` value must be one of `options[].value`
+// — checked in validate.ts (Rule 10), not here, since z.discriminatedUnion
+// requires every member to be a plain object schema, not a `.refine()`
+// wrapper.
+
 const rankStep = z.discriminatedUnion("source", [
   z.object({
     id: z.string().min(1),
@@ -196,6 +224,7 @@ export const stepSchema = z.discriminatedUnion("type", [
   inputListStep,
   inputTableStep,
   selectStep,
+  quizStep,
   rankStep,
   calculatorStep,
   urlScrapeStep,
@@ -217,6 +246,13 @@ export const exerciseSchema = z.object({
   reads: z.array(contextKey).default([]),
   requires: z.array(contextKey).default([]),
   writes: z.array(writeMapping).default([]),
+  // Exercises within a module otherwise render in filesystem read order
+  // (effectively alphabetical by filename) — an accident, not a design.
+  // Default high so unordered exercises keep behaving exactly as before;
+  // only exercises that need to render ahead of a sibling set this
+  // explicitly (e.g. an IKAP module's Install/Know/Awareness exercise
+  // needs to sort before its Practice exercise).
+  order: z.number().int().default(100),
   steps: z.array(stepSchema).min(1),
 });
 

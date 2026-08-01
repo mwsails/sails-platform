@@ -114,7 +114,7 @@ export default async function JourneyPage() {
   ].sort((a, b) => a.order - b.order);
 
   const allExercisesShown = visibleModules.flatMap((m) =>
-    visibleExercises(exercises.filter((e) => e.data.module === m.slug))
+    visibleExercises(exercises.filter((e) => e.data.module === m.slug)).sort((a, b) => a.data.order - b.data.order)
   );
   const doneCount = allExercisesShown.filter((e) => completedSlugs.has(e.data.slug)).length;
   const totalCount = allExercisesShown.length;
@@ -122,7 +122,9 @@ export default async function JourneyPage() {
 
   function renderModule(mod: (typeof modules)[number]["data"], index: number) {
     const Icon = MODULE_ICONS[mod.slug] ?? CompassIcon;
-    const moduleExercises = visibleExercises(exercises.filter((e) => e.data.module === mod.slug));
+    const moduleExercises = visibleExercises(exercises.filter((e) => e.data.module === mod.slug)).sort(
+      (a, b) => a.data.order - b.data.order
+    );
     return (
       <div
         key={mod.slug}

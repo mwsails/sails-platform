@@ -292,6 +292,25 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
     }),
   },
 
+  // Minimal for now — a log of generated Awareness scenarios within
+  // Playbook modules' IKAP loop, not the full rep[].skill_scores[] scoring
+  // system TODOS.md #5 eventually wants. Append-only. This is the
+  // "Reinforcement Exercises" TODO #5 says tier-1 platform-native signals
+  // are blocked on; wiring it up to real diagnosis is future work, this
+  // just gives it something real to read from once that happens.
+  //
+  // Plain array of scalar strings, not tagged objects with module/step_id
+  // — the writes-mapping engine can only extract a single existing
+  // answer path per mapping, it can't compose an object from one dynamic
+  // field (the ai_generate output) plus hardcoded literals (a "module"/
+  // "step_id" name). Same composite-record constraint already hit and
+  // punted on during the opp_rate diagnostic work (see TODOS/T5 history);
+  // the fix there and here is the same: keep the write target as simple
+  // as what the source step can actually produce.
+  rep: {
+    reinforcement_log: arrayOfScalar,
+  },
+
   team: {
     hiring_profile: obj({
       must_haves: arrayOfScalar,
