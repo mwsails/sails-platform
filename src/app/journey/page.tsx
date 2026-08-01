@@ -55,11 +55,9 @@ export default async function JourneyPage() {
     | { metric: string; cause: string; confidence: string; reasoning: string }[]
     | undefined) ?? [];
   const latestOppRateDiagnosis = [...diagnoses].reverse().find((d) => d.metric === "opp_rate");
-  // Only "qualification_handoff" has a built exercise to point at today
-  // (process-stages-builder) — the other two causes are real diagnoses with
-  // nowhere to send the rep yet (TODOS.md #1). Saying so honestly beats
-  // linking somewhere that doesn't address it.
   const CAUSE_NEXT_STEP: Record<string, { slug: string; label: string } | undefined> = {
+    discovery_depth: { slug: "discovery-focus-builder", label: "Build your FOCUS discovery script" },
+    single_threading: { slug: "champion-strength-check", label: "Check your champion's strength" },
     qualification_handoff: { slug: "process-stages-builder", label: "Define your pipeline stages" },
   };
 
