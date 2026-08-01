@@ -67,6 +67,20 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
       day_to_day_pains: arrayOfScalar,
       accessible_pain_levels: arrayOfScalar,
     }),
+    // References a persona by title (not id) — simpler than an id-lookup
+    // for a v1 exercise, and the rep is looking at the persona's title on
+    // screen while filling this out anyway. Not linked via merge_by_key to
+    // personas.personas because that write mode replaces the whole matched
+    // object (see store.ts's mergeByKey) — embedding this here would risk
+    // silently dropping a persona's other fields on a partial edit.
+    champion_checks: arrayOf({
+      persona_title: scalar,
+      influence: scalar, // "yes" | "no" | "not_sure"
+      incentive: scalar,
+      intel: scalar,
+      evidence: scalar,
+      overall_read: scalar, // "confirmed_champion" | "needs_more_work" | "not_a_real_champion"
+    }),
   },
 
   pain_tree: {
@@ -156,6 +170,16 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
         example_questions: arrayOfScalar,
         user_questions: arrayOfScalar,
       }),
+    }),
+    // Deliberately flatter than the elaborate discovery_framework shape
+    // below (framework_name + steps[] with dual question arrays) — same
+    // flattening tradeoff as icp-segments/persona-builder. A fixed-row
+    // input_table naturally produces {row_id, user_questions}, not the
+    // richer per-step shape, and matching that exactly isn't worth the
+    // added exercise complexity for v1.
+    discovery_script: arrayOf({
+      row_id: scalar, // "facts" | "objectives" | "complications" | "uncovering_impact" | "stakes"
+      user_questions: scalar,
     }),
     demo_narrative: obj({
       parts: arrayOf({
