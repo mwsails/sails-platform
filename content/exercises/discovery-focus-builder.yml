@@ -1,0 +1,53 @@
+# Closes the "discovery_depth" diagnosis cause from the opp_rate Diagnostic
+# Intake Layer (opp-rate-diagnosis) — until this shipped, that diagnosis had
+# nowhere to send the rep. Writes to process.discovery_script, deliberately
+# flatter than the pre-existing process.discovery_framework namespace shape
+# — see the namespace dictionary comment for why.
+slug: discovery-focus-builder
+schema_version: 1
+title: "Build Your FOCUS Discovery Script"
+module: sales-process-fundamentals
+tracks: [smb, mid-market]
+time_estimate: 20m
+intent: training
+
+reads: []
+requires: []
+
+writes:
+  - from: answers.focus_table
+    to: process.discovery_script
+    mode: replace
+
+steps:
+  - type: teach
+    body: |
+      FOCUS is the discovery framework: Facts, Objectives, Complications,
+      Uncovering Impact, Stakes. Most reps stop at Facts and Objectives,
+      which is exactly why deals stall as "interesting conversations"
+      instead of becoming real opportunities — you never priced the pain
+      or found out why it matters now. Write the questions you'll actually
+      ask at each step, in your own words.
+
+  - type: example
+    body: |
+      Uncovering Impact is the step most reps skip. It's not "what's the
+      problem" (that's Complications) — it's "what does this problem cost
+      you, in dollars, time, or missed revenue, if nothing changes?" A
+      prospect who can't answer that isn't a real opportunity yet.
+
+  - id: focus_table
+    type: input_table
+    label: "Your FOCUS discovery questions"
+    row_mode: fixed
+    columns:
+      - { name: user_questions, label: "Questions you'll ask", type: textarea }
+    fixed_rows:
+      - { row_id: facts, label: "Facts", reference_text: "What's actually happening today? Current state, current process." }
+      - { row_id: objectives, label: "Objectives", reference_text: "What are they trying to achieve? What does better look like?" }
+      - { row_id: complications, label: "Complications", reference_text: "What's getting in the way? Why hasn't this been solved already?" }
+      - { row_id: uncovering_impact, label: "Uncovering Impact", reference_text: "What does this cost them if nothing changes? Get a number." }
+      - { row_id: stakes, label: "Stakes", reference_text: "Why does this matter now, not next quarter?" }
+
+  - type: output_preview
+    shows_writes: true

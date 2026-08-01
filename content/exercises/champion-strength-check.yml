@@ -1,0 +1,90 @@
+# Closes the "single_threading" diagnosis cause from the opp_rate Diagnostic
+# Intake Layer (opp-rate-diagnosis) — until this shipped, that diagnosis had
+# nowhere to send the rep. Reads personas already tagged role_in_deal:
+# champion in persona-builder and runs them through the I3E strength test
+# from the SAILS Playbook's Buyer Roles module. Writes to
+# personas.champion_checks, a separate array (not embedded in
+# personas.personas) — see the namespace dictionary comment for why.
+slug: champion-strength-check
+schema_version: 1
+title: "Check Your Champion's Strength"
+module: personas-buyer-roles
+tracks: [smb, mid-market]
+time_estimate: 15m
+intent: development
+
+reads: [personas.personas]
+requires: [personas.personas]
+
+writes:
+  - from: answers.checks
+    to: personas.champion_checks
+    mode: replace
+
+steps:
+  - type: teach
+    body: |
+      Not everyone who wants you to win is a real champion. The I3E test:
+      does this person have Influence (can they actually move the
+      decision), Incentive (do they personally benefit if this happens),
+      Intel (do they tell you what's really going on internally), and
+      Evidence (have they done something concrete to help, not just
+      said encouraging things)? A single-threaded deal with no confirmed
+      champion is a deal that stalls the moment your one contact goes
+      quiet.
+
+  - type: example
+    body: |
+      {{context.personas.personas[0].title}} might be enthusiastic, but
+      enthusiasm isn't Evidence. Evidence is: they introduced you to
+      someone else, they gave you internal information you couldn't
+      have gotten otherwise, they pushed the deal forward between calls.
+      If they haven't done anything concrete yet, that's a gap to close,
+      not a reason to assume they will.
+
+  - id: checks
+    type: input_table
+    label: "Run each champion through the I3E test"
+    row_mode: dynamic
+    min: 1
+    max: 4
+    columns:
+      - { name: persona_title, label: "Persona", type: text }
+      - name: influence
+        label: "Influence — can they move the decision?"
+        type: select
+        options:
+          - { value: "yes", label: "Yes" }
+          - { value: "no", label: "No" }
+          - { value: "not_sure", label: "Not sure" }
+      - name: incentive
+        label: "Incentive — do they personally benefit?"
+        type: select
+        options:
+          - { value: "yes", label: "Yes" }
+          - { value: "no", label: "No" }
+          - { value: "not_sure", label: "Not sure" }
+      - name: intel
+        label: "Intel — do they tell you what's really going on?"
+        type: select
+        options:
+          - { value: "yes", label: "Yes" }
+          - { value: "no", label: "No" }
+          - { value: "not_sure", label: "Not sure" }
+      - name: evidence
+        label: "Evidence — have they done something concrete?"
+        type: select
+        options:
+          - { value: "yes", label: "Yes" }
+          - { value: "no", label: "No" }
+          - { value: "not_sure", label: "Not sure" }
+      - name: overall_read
+        label: "Your read"
+        type: select
+        options:
+          - { value: confirmed_champion, label: "Confirmed champion" }
+          - { value: needs_more_work, label: "Needs more work" }
+          - { value: not_a_real_champion, label: "Not a real champion" }
+
+  - type: output_preview
+    shows_writes: true
