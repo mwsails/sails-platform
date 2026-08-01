@@ -29,6 +29,7 @@ const tableColumn = z.object({
   name: z.string().min(1),
   label: z.string().min(1),
   type: fieldTypeEnum,
+  options: z.array(z.object({ value: z.string(), label: z.string() })).optional(),
 });
 
 const fixedRow = z.object({

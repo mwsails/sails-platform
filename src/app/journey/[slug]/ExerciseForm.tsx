@@ -283,15 +283,41 @@ function InputTableField({
             <div className="flex items-center justify-end">
               {rows.length > step.min && <RemoveButton onClick={() => onChange(rows.filter((_, idx) => idx !== i))} />}
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
               {step.columns.map((col) => (
-                <input
-                  key={col.name}
-                  value={row[col.name] ?? ""}
-                  onChange={(e) => updateDynRow(i, col.name, e.target.value)}
-                  placeholder={col.label}
-                  className={fieldClass}
-                />
+                <label key={col.name} className="block">
+                  <span className="text-xs font-medium text-muted">{col.label}</span>
+                  {col.type === "select" ? (
+                    <select
+                      value={row[col.name] ?? ""}
+                      onChange={(e) => updateDynRow(i, col.name, e.target.value)}
+                      className={fieldClass}
+                    >
+                      <option value="" disabled>
+                        Select...
+                      </option>
+                      {col.options?.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : col.type === "textarea" ? (
+                    <textarea
+                      value={row[col.name] ?? ""}
+                      onChange={(e) => updateDynRow(i, col.name, e.target.value)}
+                      rows={2}
+                      className={fieldClass}
+                    />
+                  ) : (
+                    <input
+                      type={col.type === "number" ? "number" : "text"}
+                      value={row[col.name] ?? ""}
+                      onChange={(e) => updateDynRow(i, col.name, e.target.value)}
+                      className={fieldClass}
+                    />
+                  )}
+                </label>
               ))}
             </div>
           </div>
