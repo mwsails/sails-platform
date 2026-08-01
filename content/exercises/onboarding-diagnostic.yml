@@ -6,6 +6,13 @@
 # is built to express. That function reads these same context fields after
 # this exercise's writes land, and writes company.recommended_tier +
 # team.has_sales_manager-derived tags back separately.
+#
+# Also seeds `respondent.*` (who's answering, not what the business is) and
+# `company.has_existing_motion` (explicit, not inferred from team_size — a
+# solo founder can have real closed deals). has_existing_motion is what the
+# opp_rate Diagnostic Intake Layer gates on (see opp-rate-check.yml), so a
+# zero-to-one founder never gets asked for a conversion rate on zero
+# meetings.
 slug: onboarding-diagnostic
 schema_version: 3
 title: "Your Sales Diagnostic"
@@ -18,6 +25,12 @@ reads: []
 requires: []
 
 writes:
+  - from: answers.respondent_role
+    to: respondent.role
+    mode: replace
+  - from: answers.respondent_sales_experience
+    to: respondent.sales_experience
+    mode: replace
   - from: answers.company_name
     to: company.name
     mode: replace
@@ -26,6 +39,9 @@ writes:
     mode: replace
   - from: answers.motion
     to: company.motion
+    mode: replace
+  - from: answers.has_existing_motion
+    to: company.has_existing_motion
     mode: replace
   - from: answers.acv
     to: company.acv
@@ -58,10 +74,27 @@ writes:
 steps:
   - type: teach
     body: |
-      A few questions about how you sell today. Nothing here is graded —
-      it just seeds your profile and routes you to the right track, so
-      every exercise after this one already knows your business instead
-      of asking you to repeat yourself.
+      A few questions about you and how you sell today. Nothing here is
+      graded — it just seeds your profile and routes you to the right
+      track, so every exercise after this one already knows your business
+      instead of asking you to repeat yourself.
+
+  - id: respondent_role
+    type: select
+    label: "What's your role?"
+    options:
+      - { value: founder, label: "Founder" }
+      - { value: sales_leader, label: "Sales leader / manager" }
+      - { value: rep, label: "Individual rep" }
+      - { value: other, label: "Other" }
+
+  - id: respondent_sales_experience
+    type: select
+    label: "How much formal sales experience do you have?"
+    options:
+      - { value: none, label: "None — this is new to me" }
+      - { value: some, label: "Some — I've sold before, informally or early-career" }
+      - { value: extensive, label: "Extensive — years of quota-carrying or sales-leadership experience" }
 
   - id: company_name
     type: input_text
@@ -79,6 +112,13 @@ steps:
     options:
       - { value: founder_led, label: "Founder-led — it's mostly me" }
       - { value: team_selling, label: "Team selling — I have reps" }
+
+  - id: has_existing_motion
+    type: select
+    label: "Have you closed real deals with real customers yet?"
+    options:
+      - { value: "yes", label: "Yes — we have an existing motion and real numbers to look at" }
+      - { value: "no", label: "No — we're just getting started" }
 
   - id: has_sales_manager
     type: select
