@@ -1,0 +1,96 @@
+# Closes the messaging.* gap flagged in the SAILS Platform Rebuild Map:
+# the existing messaging-foundation module's other two exercises
+# (buyer-impact-areas, cost-of-inaction-calculator) write to pain_tree.*,
+# so despite the module's name nothing ever populated messaging.* and the
+# Playbook's "Messaging and POV" section (src/lib/playbook/sections.ts)
+# rendered blank. This exercise is the first of two planned increments —
+# it covers pov_statement, problem_statements, soundbites, and
+# no_logo_pitch. value_map and proof_points are each their own table-shaped
+# concept (capability -> problem -> proof -> outcome) and are deliberately
+# left for a follow-up exercise rather than overloading this one.
+slug: messaging-pov-builder
+schema_version: 1
+title: "Build Your POV and Messaging"
+module: messaging-foundation
+tracks: [smb, mid-market]
+time_estimate: 20m
+intent: training
+
+reads:
+  - pain_tree.impact_areas
+  - pain_tree.cost_of_inaction_estimate
+requires:
+  - pain_tree.impact_areas
+
+writes:
+  - from: answers.pov_statement
+    to: messaging.pov_statement
+    mode: replace
+  - from: answers.problem_statements[].statement
+    to: messaging.problem_statements
+    mode: replace
+  - from: answers.soundbites[].line
+    to: messaging.soundbites
+    mode: replace
+  - from: answers.no_logo_pitch
+    to: messaging.no_logo_pitch
+    mode: replace
+
+steps:
+  - type: teach
+    body: |
+      A pitch that only works with your logo on the slide is not a real
+      pitch. Before you say your company's name, you need a point of view
+      on why the old way is broken, problem statements a buyer would nod
+      along to before you've shown them anything, and soundbites short
+      enough that your own reps repeat them without checking a deck.
+      Build all three from the impact areas you already named, not from a
+      features list.
+
+  - type: example
+    body: |
+      If {{context.pain_tree.impact_areas[0].who_feels_it}} is stuck with
+      {{context.pain_tree.impact_areas[0].area_name}}, don't open with your
+      product. Open with a claim: most teams treat this as normal, here's
+      why it isn't, and here's what it's actually costing them. That's a
+      POV. The soundbite version compresses it to something a rep can say
+      without breathing.
+
+  - id: pov_statement
+    type: input_text
+    label: "Your point of view, in one sentence"
+    placeholder: "Most [ICP] think the problem is X. It's actually Y."
+    multiline: false
+    max_length: 280
+
+  - id: problem_statements
+    type: input_list
+    label: "Problem statements a buyer would recognize before you pitch"
+    min: 2
+    max: 4
+    fields:
+      - { name: statement, label: "Problem statement", type: textarea }
+
+  - id: soundbites
+    type: input_list
+    label: "Soundbites your reps can say from memory"
+    min: 2
+    max: 5
+    fields:
+      - { name: line, label: "Soundbite", type: text }
+
+  - type: example
+    body: |
+      Read your pitch out loud and delete every mention of your company
+      name. If it still sounds specific, it's a real pitch. If it
+      collapses into something any vendor in your category could say,
+      you're selling a category, not a reason to buy from you.
+
+  - id: no_logo_pitch
+    type: input_text
+    label: "Your pitch, with your company name redacted"
+    multiline: true
+    max_length: 600
+
+  - type: output_preview
+    shows_writes: true
