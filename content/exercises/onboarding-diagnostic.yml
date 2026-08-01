@@ -16,9 +16,11 @@
 #
 # company_name/product_name/category/pricing_model are seeded via
 # url_scrape (company_scrape step) instead of blank text fields — "never
-# show a blank field" per the plan's §0.3 exercise pattern. A skipped or
-# failed scrape leaves the same editable form empty, degrading to exactly
-# the old manual-entry behavior with no special-casing needed.
+# show a blank field" per the plan's §0.3 exercise pattern. The same step
+# also seeds org.brand.primary_color/logo_url from the scrape's page
+# metadata (theme-color, og:image/favicon), free on the same API call. A
+# skipped or failed scrape leaves the same editable form empty, degrading
+# to exactly the old manual-entry behavior with no special-casing needed.
 slug: onboarding-diagnostic
 schema_version: 3
 title: "Your Sales Diagnostic"
@@ -48,6 +50,12 @@ writes:
     mode: replace
   - from: answers.company_scrape.pricing_model
     to: company.pricing_model
+    mode: replace
+  - from: answers.company_scrape.brand_primary_color
+    to: org.brand.primary_color
+    mode: replace
+  - from: answers.company_scrape.brand_logo_url
+    to: org.brand.logo_url
     mode: replace
   - from: answers.motion
     to: company.motion
@@ -116,6 +124,8 @@ steps:
       - { name: product_name, label: "What you sell, in one sentence", type: textarea }
       - { name: category, label: "Category (e.g. \"B2B sales consulting\", \"POS software\")", type: text }
       - { name: pricing_model, label: "Pricing model (subscription, usage-based, one-time, or hybrid)", type: text }
+      - { name: brand_primary_color, label: "Brand primary color (hex)", type: text }
+      - { name: brand_logo_url, label: "Logo URL", type: text }
 
   - id: motion
     type: select
