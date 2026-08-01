@@ -43,6 +43,7 @@ export default async function JourneyPage() {
     readContext(supabase, user.orgId, [
       "company.recommended_tier",
       "company.motion",
+      "company.has_existing_motion",
       "team.has_sales_manager",
       "metrics.diagnosis",
     ]),
@@ -80,6 +81,16 @@ export default async function JourneyPage() {
   const diagnosticDone = completedSlugs.has("onboarding-diagnostic");
   const tier = context["company.recommended_tier"] as Tier | undefined;
 
+  // opp_rate is a computed metric from real meeting history — asking a
+  // zero-to-one org (no existing motion yet) for a conversion rate on zero
+  // meetings is the exact "deals in motion" bug this gate exists to close.
+  // Excluded from both the module list and the progress-count denominator,
+  // not just grayed out, since it genuinely doesn't apply yet.
+  const hideOppRateExercises = context["company.has_existing_motion"] === "no";
+  const OPP_RATE_SLUGS = new Set(["opp-rate-check", "opp-rate-diagnosis"]);
+  const visibleExercises = (list: typeof exercises) =>
+    hideOppRateExercises ? list.filter((e) => !OPP_RATE_SLUGS.has(e.data.slug)) : list;
+
   const applicable = tier
     ? applicableTracks({
         tier,
@@ -102,14 +113,16 @@ export default async function JourneyPage() {
       : []),
   ].sort((a, b) => a.order - b.order);
 
-  const allExercisesShown = visibleModules.flatMap((m) => exercises.filter((e) => e.data.module === m.slug));
+  const allExercisesShown = visibleModules.flatMap((m) =>
+    visibleExercises(exercises.filter((e) => e.data.module === m.slug))
+  );
   const doneCount = allExercisesShown.filter((e) => completedSlugs.has(e.data.slug)).length;
   const totalCount = allExercisesShown.length;
   const progressPct = totalCount ? Math.round((doneCount / totalCount) * 100) : 0;
 
   function renderModule(mod: (typeof modules)[number]["data"], index: number) {
     const Icon = MODULE_ICONS[mod.slug] ?? CompassIcon;
-    const moduleExercises = exercises.filter((e) => e.data.module === mod.slug);
+    const moduleExercises = visibleExercises(exercises.filter((e) => e.data.module === mod.slug));
     return (
       <div
         key={mod.slug}

@@ -45,9 +45,27 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
     procurement_involved: scalar,
     buyer_title: scalar,
     total_revenue: scalar,
+    // Explicit, not inferred from team_size — a solo founder can still have
+    // real closed deals and real funnel numbers, and a team of 3 can be six
+    // months old with nothing to report yet. Gates whether metrics.* and
+    // the opp_rate Diagnostic Intake Layer are even asked (see
+    // opp-rate-check.yml's requires) instead of asking a founder for a
+    // conversion rate on zero meetings.
+    has_existing_motion: scalar, // "yes" | "no"
     // Written by recommend.ts, not by the diagnostic exercise directly —
     // the one tier-deciding field every other namespace/module keys off.
     recommended_tier: scalar,
+  },
+
+  // Who is answering, not what the business is — orthogonal to company.*.
+  // A sales leader and an individual rep at the same company should see
+  // different depth; someone with extensive experience should be able to
+  // skip straight to Practice on a framework they already know instead of
+  // sitting through Install/Know every time. Collected in onboarding,
+  // ahead of Foundation, since it colors every screen after.
+  respondent: {
+    role: scalar, // "founder" | "sales_leader" | "rep" | "other"
+    sales_experience: scalar, // "none" | "some" | "extensive"
   },
 
   icp: {
