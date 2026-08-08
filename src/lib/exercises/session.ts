@@ -18,6 +18,7 @@ export async function getOrCreateSession(
     .from("exercise_sessions")
     .select("id, exercise_slug, status, answers")
     .eq("org_id", orgId)
+    .eq("user_id", userId)
     .eq("exercise_slug", exerciseSlug)
     .eq("status", "in_progress")
     .order("started_at", { ascending: false })
