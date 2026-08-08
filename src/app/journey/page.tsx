@@ -40,7 +40,7 @@ export default async function JourneyPage() {
       .select("exercise_slug, status")
       .eq("org_id", user.orgId)
       .eq("status", "completed"),
-    readContext(supabase, user.orgId, [
+    readContext(supabase, user.orgId, user.id, [
       "company.recommended_tier",
       "company.motion",
       "company.has_existing_motion",

@@ -309,6 +309,53 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
   // as what the source step can actually produce.
   rep: {
     reinforcement_log: arrayOfScalar,
+    // Modeled as an org-scoped append-only log (mode: append, same as
+    // reinforcement_log), not a separately user-scoped namespace, per the
+    // design handoff's own proposed shape: {agent, subject, promised_on,
+    // due, status, user_id} — user_id lives as a field on each entry so a
+    // manager can eventually see the team's open commitments in one place,
+    // rather than each rep only ever seeing their own. The proactive
+    // follow-up loop (email or in-app, still open — see repo-open Q2) reads
+    // this; nothing writes to it yet, this is schema ahead of the feature.
+    commitments: arrayOf({
+      agent: scalar, // "cro" | "vp" | "enable"
+      subject: scalar,
+      promised_on: scalar,
+      due: scalar,
+      status: scalar, // "open" | "done" | "missed"
+      user_id: scalar,
+    }),
+  },
+
+  // Net-new, additive — no v1 exercise reads/writes org.brand.* yet. Colors
+  // and fonts are proposed by the scraper reading the org's stylesheet
+  // (mirrors the METADATA_FIELD_SOURCES pattern already used for
+  // brand_primary_color/brand_logo_url on company_scrape), logo needs file
+  // upload + storage this app doesn't have yet (repo-open §8). Every
+  // Enablement-generated asset renders in these tokens; SAILS appears in
+  // the footer only, per the design handoff's own rule.
+  org: {
+    brand: obj({
+      logo: scalar,
+      color_primary: scalar,
+      color_secondary: scalar,
+      color_accent: scalar,
+      font_heading: scalar,
+      font_body: scalar,
+    }),
+  },
+
+  // Per-rep IKAP module progress (install/know/awareness/practice status,
+  // quiz scores). Deliberately loose (`any`) rather than a precisely
+  // modeled shape — the actual IKAP UI doesn't exist yet (quiz step type
+  // shipped this session, Install/Awareness content authoring hasn't
+  // started), and guessing the exact per-module tracking shape now risks
+  // getting it wrong before there's a real screen to validate it against.
+  // User-scoped (see USER_SCOPED_NAMESPACES below) — progress is per-rep
+  // per the "multi-rep is per-rep" decision, same reasoning as
+  // respondent.*.
+  progress: {
+    ikap: { kind: "any" },
   },
 
   team: {
@@ -356,6 +403,17 @@ export const ALL_NAMESPACES: Record<string, Record<string, FieldNode>> = {
   ...NAMESPACES,
   ...RESERVED_NAMESPACES,
 };
+
+// Namespaces scoped to an individual user within an org (context_fields.user_id
+// set), not the whole org. Everything else defaults to org-scoped
+// (user_id null) — see supabase/migrations/0002_user_scoped_context.sql and
+// src/lib/context/store.ts. Deliberately a short, explicit allowlist rather
+// than inferring scope from field names: getting this wrong in either
+// direction is a real bug (a rep's answer either leaking org-wide, or an
+// org fact only one rep can see), so it's a conscious per-namespace choice,
+// same house style as `has_existing_motion` being explicit rather than
+// inferred.
+export const USER_SCOPED_NAMESPACES = new Set(["respondent", "progress"]);
 
 // Deal-size tiers — a user has exactly one. "enterprise" is routing/labeling
 // only in v1 (no content ships against it yet).

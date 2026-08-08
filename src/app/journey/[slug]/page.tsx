@@ -19,7 +19,7 @@ export default async function ExercisePage({ params }: { params: Promise<{ slug:
   if (!exercise) notFound();
 
   const session = await getOrCreateSession(supabase, user.orgId, user.id, slug);
-  const context = await readContext(supabase, user.orgId, exercise.reads);
+  const context = await readContext(supabase, user.orgId, user.id, exercise.reads);
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">

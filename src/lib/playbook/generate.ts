@@ -18,10 +18,17 @@ async function readContextForSection(
 ): Promise<{ ctx: Record<string, unknown>; generatedFrom: GeneratedFrom[] }> {
   if (keys.length === 0) return { ctx: {}, generatedFrom: [] };
 
+  // Playbook sections are org-level documents, not per-rep — only ever read
+  // org-scoped facts (user_id null). Without this filter, context_fields_latest
+  // now returns one row per distinct user_id that's ever written a key (see
+  // migration 0002), so this needs the same explicit filter store.ts's
+  // readContext applies, even though no section currently declares a
+  // user-scoped key in its `reads`.
   const { data, error } = await supabase
     .from("context_fields_latest")
     .select("id, key, value")
     .eq("org_id", orgId)
+    .is("user_id", null)
     .in("key", keys);
   if (error) throw error;
 
