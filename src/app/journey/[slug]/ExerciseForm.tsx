@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ExerciseDef, Step } from "@/lib/content/exercise-schema";
 import { renderTemplate } from "@/lib/template";
 import { evaluateFormula } from "@/lib/formula";
-import { submitExercise } from "./actions";
+import { submitExercise, saveProgress } from "./actions";
 import { AiSuggestPanel } from "./AiSuggestPanel";
 import { AiGenerateField } from "./AiGenerateField";
 import { UrlScrapeField } from "./UrlScrapeField";
@@ -551,6 +551,20 @@ export function ExerciseForm({
   function set(stepId: string, value: unknown) {
     setAnswers((prev) => ({ ...prev, [stepId]: value }));
   }
+
+  // Autosave, debounced — skips the mount-time run so it doesn't re-save
+  // initialAnswers straight back to themselves on every page load.
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const timeout = setTimeout(() => {
+      saveProgress(sessionId, answers);
+    }, 800);
+    return () => clearTimeout(timeout);
+  }, [answers, sessionId]);
 
   function handleSubmit() {
     startTransition(async () => {
