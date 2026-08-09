@@ -12,7 +12,7 @@ import {
   deferLeadSources,
 } from "./actions";
 import { computeSourceMetrics, computeBlended, LEAD_SOURCES, type SourceInput } from "@/lib/onboarding/metrics";
-import { CheckCircleIcon, CircleIcon, SparkleIcon, ArrowRightIcon, PlusIcon, XIcon } from "@/components/icons";
+import { CheckCircleIcon, CircleIcon, SparkleIcon, ArrowRightIcon, PlusIcon, XIcon, InfoIcon } from "@/components/icons";
 
 type Step = "business" | "role" | "experience" | "motion" | "metrics";
 
@@ -469,15 +469,58 @@ const EMPTY_SOURCE: Omit<SourceInput, "source"> = {
   cycle_length_days: 0,
 };
 
-const COUNT_FIELDS: { name: keyof typeof EMPTY_SOURCE; label: string }[] = [
-  { name: "leads", label: "Leads" },
-  { name: "sets", label: "Meetings set" },
-  { name: "meetings", label: "Meetings held" },
-  { name: "opportunities", label: "Opportunities" },
-  { name: "closed_won", label: "Closed won" },
-  { name: "arr", label: "ARR ($)" },
-  { name: "cycle_length_days", label: "Cycle length (days)" },
+const COUNT_FIELDS: { name: keyof typeof EMPTY_SOURCE; label: string; hint: string }[] = [
+  {
+    name: "leads",
+    label: "Leads",
+    hint: "People or accounts that came in through this source, before any outreach turned them into a scheduled meeting.",
+  },
+  {
+    name: "sets",
+    label: "Meetings set",
+    hint: "Leads who agreed to a meeting and put time on the calendar.",
+  },
+  {
+    name: "meetings",
+    label: "Meetings held",
+    hint: "Meetings that actually happened. Set doesn't always mean held, people no-show.",
+  },
+  {
+    name: "opportunities",
+    label: "Opportunities",
+    hint: "Meetings that turned into a real, qualified deal in your pipeline.",
+  },
+  {
+    name: "closed_won",
+    label: "Closed won",
+    hint: "Opportunities that became paying customers.",
+  },
+  {
+    name: "arr",
+    label: "ARR ($)",
+    hint: "Annual recurring revenue from the deals you closed in this source.",
+  },
+  {
+    name: "cycle_length_days",
+    label: "Cycle length (days)",
+    hint: "Average number of days from first meeting to closed won.",
+  },
 ];
+
+function HintLabel({ label, hint }: { label: string; hint: string }) {
+  return (
+    <span className="group/hint relative inline-flex items-center gap-1">
+      <span className="text-xs font-medium text-muted">{label}</span>
+      <InfoIcon className="h-3 w-3 shrink-0 text-faint" />
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 w-48 -translate-x-1/2 rounded-lg border border-[var(--sails-border)] bg-[var(--background)] p-2.5 text-[11px] leading-snug text-[var(--foreground)] opacity-0 shadow-[var(--shadow-soft-hover)] transition-opacity duration-150 group-hover/hint:opacity-100"
+      >
+        {hint}
+      </span>
+    </span>
+  );
+}
 
 function formatPct(n: number) {
   return `${Math.round(n * 100)}%`;
@@ -578,7 +621,7 @@ function MetricsStep({ onDone }: { onDone: () => void }) {
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {COUNT_FIELDS.map((f) => (
                       <label key={f.name} className="block">
-                        <span className="text-xs font-medium text-muted">{f.label}</span>
+                        <HintLabel label={f.label} hint={f.hint} />
                         <input
                           type="text"
                           inputMode="numeric"
