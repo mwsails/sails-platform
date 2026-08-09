@@ -200,19 +200,39 @@ export async function readContext(
  * All latest context visible to a user, grouped by top-level namespace —
  * powers the Sales Profile page. That's every org-scoped field (user_id
  * null) plus this caller's own user-scoped fields — not other reps'.
+ *
+ * A key can legitimately have both an org-scoped row (written before its
+ * namespace was added to USER_SCOPED_NAMESPACES, or just never migrated)
+ * and this caller's user-scoped row — context_fields_latest dedupes per
+ * (org_id, user_id, key), not per (org_id, key), so both are "latest" from
+ * the view's perspective and the .or() below returns both. Dedupe again
+ * here, per key, preferring the user-scoped row when one exists: for a key
+ * whose namespace is user-scoped, the caller's own row is always the
+ * current answer, any surviving null-user row is orphaned history from
+ * before that scoping existed, not a second real value.
  */
 export async function readAllContextByNamespace(
   supabase: SupabaseClient,
   orgId: string,
   callerUserId: string | null
 ): Promise<Record<string, { key: string; value: unknown }[]>> {
-  let query = supabase.from("context_fields_latest").select("key, value").eq("org_id", orgId).order("key");
+  let query = supabase
+    .from("context_fields_latest")
+    .select("key, value, user_id")
+    .eq("org_id", orgId)
+    .order("key");
   query = callerUserId ? query.or(`user_id.is.null,user_id.eq.${callerUserId}`) : query.is("user_id", null);
   const { data, error } = await query;
   if (error) throw error;
 
-  const grouped: Record<string, { key: string; value: unknown }[]> = {};
+  const byKey = new Map<string, { key: string; value: unknown; user_id: string | null }>();
   for (const row of data ?? []) {
+    const existing = byKey.get(row.key);
+    if (!existing || row.user_id !== null) byKey.set(row.key, row);
+  }
+
+  const grouped: Record<string, { key: string; value: unknown }[]> = {};
+  for (const row of byKey.values()) {
     const namespace = row.key.split(".")[0];
     grouped[namespace] ??= [];
     grouped[namespace].push({ key: row.key, value: row.value });
