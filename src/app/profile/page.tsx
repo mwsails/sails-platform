@@ -50,7 +50,7 @@ export default async function ProfilePage() {
   const user = await getCurrentUser(supabase);
   if (!user) redirect("/sign-in");
 
-  const grouped = await readAllContextByNamespace(supabase, user.orgId);
+  const grouped = await readAllContextByNamespace(supabase, user.orgId, user.id);
   const namespaces = Object.keys(grouped).sort();
   const fieldOptions = loadFieldOptions();
 

@@ -25,6 +25,7 @@ export async function updateContextField(key: string, rawJson: string) {
   await writeContext(
     supabase,
     user.orgId,
+    user.id,
     [{ from: "answers.__manual", to: key, mode: "replace" }],
     { __manual: value },
     "manual",

@@ -7,10 +7,30 @@ this before changing anything.
 
 The SAILS Platform: guided sales exercises for B2B SaaS founders/sales
 leaders (velocity motions — see `sails-advisory` for the ICP) that compound
-into a living sales playbook via a shared org-level context layer. This is
-the *product*; `sails-advisory` (separate repo, `mwsails/sails-site`) is the
-*marketing site* for the same practice. Different stack, different repo,
-different deploy target — don't conflate them.
+into a living sales playbook via a shared org-level context layer.
+
+**As of August 2026, this IS the company.** SAILS is repositioning from a
+consultant-led practice to an AI platform company: the 8-week consulting
+engagement is retired entirely, and this product is the sole offer.
+`sails-advisory` (separate repo, `mwsails/sails-site`) is the *marketing
+site* for this platform — its CLAUDE.md carries the repositioning rules for
+public-facing copy. Different stack, different repo, different deploy
+target — don't conflate them.
+
+Repositioning implications for product work here:
+
+- The platform must stand alone. Nothing in-product may assume a consulting
+  engagement wraps it — no "your consultant," "your engagement," or
+  "discuss with Matt" framing in UI strings, prompts, or generated playbook
+  content. The product's voice is the product's, self-serve by default.
+- Positioning specifics are still open (pricing/packaging, final product
+  name — "SAILS Platform" is the working name — signup motion beyond the
+  current invite-only auth, launch timing). Don't encode any of these into
+  copy, schema, or billing-shaped tables without asking Matt first.
+- Roadmap pressure shifts accordingly: anything gating a stranger's
+  self-serve first-run (onboarding polish, empty states, `ai_review`/
+  `ai_generate` completion, export) matters more than it did when Matt was
+  in the room with every user.
 
 ## Source of truth for product decisions
 

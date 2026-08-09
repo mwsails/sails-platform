@@ -10,6 +10,30 @@ import { generateSuggestions } from "@/lib/ai/suggest";
 import { generateContent } from "@/lib/ai/generate";
 import { scrapeAndExtract } from "@/lib/scrape/firecrawl";
 
+/**
+ * Autosave for in-progress exercise answers — otherwise nothing persists
+ * before the final submit (a closed tab mid-onboarding loses everything
+ * typed). Fires on every field change, debounced client-side in
+ * ExerciseForm. Deliberately partial: never touches status/completed_at,
+ * never writes context — that's still submitExercise's job alone. Scoped to
+ * `status: "in_progress"` so it can't reach back and mutate an already-
+ * completed session, and silently no-ops on failure — a dropped autosave
+ * shouldn't interrupt someone mid-thought, the next successful save or the
+ * final submit catches up regardless.
+ */
+export async function saveProgress(sessionId: string, answers: Record<string, unknown>) {
+  const supabase = await createClient();
+  const user = await getCurrentUser(supabase);
+  if (!user) return;
+
+  await supabase
+    .from("exercise_sessions")
+    .update({ answers })
+    .eq("id", sessionId)
+    .eq("org_id", user.orgId)
+    .eq("status", "in_progress");
+}
+
 export async function submitExercise(
   sessionId: string,
   exerciseSlug: string,
@@ -29,7 +53,7 @@ export async function submitExercise(
     .eq("org_id", user.orgId);
   if (error) throw error;
 
-  await writeContext(supabase, user.orgId, exercise.writes, answers, "exercise", sessionId);
+  await writeContext(supabase, user.orgId, user.id, exercise.writes, answers, "exercise", sessionId);
 
   // The diagnostic is the one exercise whose completion also computes a
   // derived value (a tier recommendation across several fields) rather than
@@ -49,6 +73,7 @@ export async function submitExercise(
     await writeContext(
       supabase,
       user.orgId,
+      user.id,
       [{ from: "answers.__recommended_tier", to: "company.recommended_tier", mode: "replace" }],
       { __recommended_tier: rec.tier },
       "exercise",
@@ -86,7 +111,7 @@ export async function suggestForStep(
     }
 
     const fields = step.type === "input_list" ? step.fields : step.type === "input_table" ? step.columns : [];
-    const context = await readContext(supabase, user.orgId, step.suggest.reads);
+    const context = await readContext(supabase, user.orgId, user.id, step.suggest.reads);
 
     const suggestions = await generateSuggestions({
       promptRef: step.suggest.prompt_ref,
@@ -126,7 +151,7 @@ export async function generateForStep(
       return { error: `step "${stepId}" is not an ai_generate step` };
     }
 
-    const context = await readContext(supabase, user.orgId, step.reads ?? []);
+    const context = await readContext(supabase, user.orgId, user.id, step.reads ?? []);
     const fields = step.fields ?? [{ name: "content", label: "Content" }];
 
     const content = await generateContent({
