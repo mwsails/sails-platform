@@ -316,7 +316,13 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
     // counts, but a typed rate can never disagree with its own counts,
     // because nothing ever types one.
     lead_sources: arrayOf({
-      source: scalar, // "cold_outbound" | "inbound" | "referral" | "lost_opportunities" | "partners" | "events"
+      // One of the six fixed values ("cold_outbound" | "inbound" | "referral"
+      // | "lost_opportunities" | "partners" | "events"), or a slugified
+      // custom name — the Metrics screen lets a rep add their own source
+      // (a second outbound motion, co-marketing, affiliates) alongside the
+      // six suggested ones. Free text at the schema level either way; the
+      // fixed list is a UI convenience (LEAD_SOURCES), not a validated enum.
+      source: scalar,
       leads: scalar,
       sets: scalar,
       meetings: scalar,
@@ -335,6 +341,20 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
     // straight mean (see computeLeadSourceMetrics). Derived, never typed,
     // same reasoning as the per-source rates above.
     velocity: scalar,
+    // Fixed at 90, not user-selectable — see REPORTING_PERIOD_DAYS in
+    // src/lib/onboarding/metrics.ts for the reasoning (comparability across
+    // orgs and across a single org's own history matters more than letting
+    // someone pick monthly/quarterly/annually). Stored, not just a copy
+    // assumption, so a future change to the default doesn't leave old
+    // lead_sources rows ambiguous about what window they represent.
+    reporting_period_days: scalar,
+    // Which of the six suggested LEAD_SOURCES the rep left off — computed
+    // at write time as "the fixed list minus whatever's in lead_sources",
+    // not a separate user input. Custom sources are never "unused" (they
+    // were never suggested in the first place), so this only ever names
+    // the six fixed values. A CRO gap-check reads this directly instead of
+    // reconstructing the diff itself.
+    unused_sources: arrayOfScalar,
   },
 
   // Minimal for now — a log of generated Awareness scenarios within

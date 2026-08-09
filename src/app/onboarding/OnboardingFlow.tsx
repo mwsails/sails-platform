@@ -529,10 +529,22 @@ function formatMoney(n: number) {
   return `$${Math.round(n).toLocaleString()}`;
 }
 
+function slugifySourceName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
 function MetricsStep({ onDone }: { onDone: () => void }) {
   const [enabled, setEnabled] = useState<Record<string, boolean>>({});
   const [rows, setRows] = useState<Record<string, Omit<SourceInput, "source">>>({});
+  const [customSources, setCustomSources] = useState<{ value: string; label: string }[]>([]);
+  const [newSourceName, setNewSourceName] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  const allSources = [...LEAD_SOURCES, ...customSources];
 
   function toggle(source: string) {
     setEnabled((prev) => ({ ...prev, [source]: !prev[source] }));
@@ -544,10 +556,22 @@ function MetricsStep({ onDone }: { onDone: () => void }) {
     setRows((prev) => ({ ...prev, [source]: { ...prev[source], [field]: n } }));
   }
 
-  const activeSources: SourceInput[] = LEAD_SOURCES.filter((s) => enabled[s.value]).map((s) => ({
-    source: s.value,
-    ...(rows[s.value] ?? EMPTY_SOURCE),
-  }));
+  function addCustomSource() {
+    const label = newSourceName.trim();
+    if (!label) return;
+    const value = slugifySourceName(label);
+    if (!value || allSources.some((s) => s.value === value)) return;
+    setCustomSources((prev) => [...prev, { value, label }]);
+    setEnabled((prev) => ({ ...prev, [value]: true }));
+    setRows((prev) => ({ ...prev, [value]: { ...EMPTY_SOURCE } }));
+    setNewSourceName("");
+  }
+
+  const activeSources: SourceInput[] = useMemo(
+    () => allSources.filter((s) => enabled[s.value]).map((s) => ({ source: s.value, ...(rows[s.value] ?? EMPTY_SOURCE) })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- allSources is [...LEAD_SOURCES, ...customSources], customSources already covers the only part of it that can change
+    [customSources, enabled, rows]
+  );
   const computed = useMemo(() => activeSources.map(computeSourceMetrics), [activeSources]);
   const blended = useMemo(() => computeBlended(computed), [computed]);
   const hasAnyData = activeSources.length > 0;
@@ -571,8 +595,10 @@ function MetricsStep({ onDone }: { onDone: () => void }) {
       <span className={eyebrowClass}>Onboarding · Sales motion</span>
       <h1 className={headlineClass}>Metrics, by lead source</h1>
       <p className="mt-3 text-[15px] leading-relaxed text-muted">
-        Turn on the sources you actually track. Enter counts only — set rate, keep rate, opp rate, close rate, ARPA,
-        and velocity are always calculated, never typed, so a number here can never disagree with your own counts.
+        Turn on the sources you actually track. Based on your last 90 days — a fixed window, not something you pick,
+        so your numbers stay comparable over time and against your segment. Enter counts only — set rate, keep rate,
+        opp rate, close rate, ARPA, and velocity are always calculated, never typed, so a number here can never
+        disagree with your own counts.
       </p>
 
       {hasAnyData && (
@@ -590,7 +616,7 @@ function MetricsStep({ onDone }: { onDone: () => void }) {
       )}
 
       <div className="mt-6 flex flex-col gap-3">
-        {LEAD_SOURCES.map((s) => {
+        {allSources.map((s) => {
           const isOn = !!enabled[s.value];
           const row = rows[s.value] ?? EMPTY_SOURCE;
           const sourceComputed = isOn ? computeSourceMetrics({ source: s.value, ...row }) : null;
@@ -648,6 +674,29 @@ function MetricsStep({ onDone }: { onDone: () => void }) {
             </div>
           );
         })}
+
+        <div className="flex items-center gap-2 rounded-2xl border border-dashed border-[var(--sails-border)] bg-transparent px-4 py-3">
+          <input
+            value={newSourceName}
+            onChange={(e) => setNewSourceName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addCustomSource();
+              }
+            }}
+            placeholder="Not on the list? Name your own source"
+            className="flex-1 bg-transparent text-sm text-[var(--foreground)] placeholder:text-faint focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={addCustomSource}
+            disabled={!newSourceName.trim()}
+            className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium text-[var(--sails-blue)] transition-colors duration-150 hover:bg-[var(--sails-blue-light)] disabled:opacity-40"
+          >
+            + Add source
+          </button>
+        </div>
       </div>
 
       <div className="mt-6 flex items-center gap-4">
