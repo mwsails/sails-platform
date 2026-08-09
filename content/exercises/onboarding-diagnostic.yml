@@ -1,27 +1,36 @@
-# The second stop in onboarding, right after the bespoke Business/You
-# screens (src/app/onboarding, not an exercise — see that route for why).
-# Seeds `company.*`/`team.*` tier-routing signals the plan (§2) calls for
-# capturing at diagnostic time. Track *recommendation* itself lives in app
-# code (src/lib/tracks/recommend.ts), not this file — it's a deterministic
-# score across several fields, not a single-field mapping the writes/steps
-# model is built to express. That function reads these same context fields
-# after this exercise's writes land, and writes company.recommended_tier +
-# team.has_sales_manager-derived tags back separately.
+# RETIRED — unreachable from the UI, kept on disk only so content:sync's
+# stale-row pruning doesn't hard-fail. exercise_sessions.exercise_slug has a
+# not-null foreign key to the exercises table with no cascade; historical
+# orgs (including production ones) that completed this exercise under the
+# old system still have a row referencing this slug, and deleting this file
+# would make `npm run content:sync` fail outright on that constraint. The
+# orientation-diagnostic module is excluded from Journey's visible-module
+# list by slug (see journey/page.tsx) and this exercise is never linked to,
+# so no one can start a new session against it. Do not add steps here or
+# route anyone to it — every field it used to write now lives on the
+# bespoke onboarding screens (src/app/onboarding, not an exercise) instead,
+# finishing the migration this file's own comment used to describe as
+# in-progress:
 #
-# Used to also seed respondent.role/sales_experience, company.name/
-# product_name/category/pricing_model, and company.has_existing_motion —
-# all three moved to the bespoke Business/You/Sales-motion onboarding
-# screens (forced order: Business, You, Sales motion, then this).
-# has_existing_motion in particular is what the opp_rate Diagnostic Intake
-# Layer gates on (see opp-rate-check.yml), so a zero-to-one founder never
-# gets asked for a conversion rate on zero meetings — that gate still
-# works identically now that the field is written earlier in onboarding
-# instead of by this exercise. This exercise doesn't read any of those
-# fields itself so `reads`/`requires` stay empty, but the app-level
-# onboarding gate (src/app/onboarding) is what actually enforces that they
-# ran first, not a content-layer `requires`.
+# motion/acv/cycle_length/stakeholder_count/target_customer_size/
+# procurement_involved/buyer_title/has_sales_manager moved to the Customer
+# and Sales Motion buckets (src/app/onboarding/actions.ts — saveDealShape,
+# saveCustomerProfile, saveHasExistingMotion, saveTeamRoles). The tier
+# recommendation this exercise's completion used to trigger as a special
+# case (src/app/journey/[slug]/actions.ts) is now computed inside
+# saveDealShape instead, the moment its last required input is known.
+#
+# team_size and total_revenue are simply no longer captured — neither was
+# read anywhere outside this file (confirmed by grep before retiring this
+# exercise), so there was nothing downstream to migrate them to. Add them
+# back on a real onboarding screen if something ever needs them.
+#
+# respondent.role/sales_experience and company.name/product_name/category/
+# pricing_model/has_existing_motion moved to bespoke onboarding screens even
+# earlier than this retirement — see git history if that migration's
+# reasoning is needed.
 slug: onboarding-diagnostic
-schema_version: 3
+schema_version: 4
 title: "Your Sales Diagnostic"
 module: orientation-diagnostic
 tracks: [smb, mid-market, enterprise]
@@ -41,9 +50,6 @@ writes:
   - from: answers.cycle_length
     to: company.cycle_length_days
     mode: replace
-  - from: answers.team_size
-    to: company.team_size
-    mode: replace
   - from: answers.stakeholder_count
     to: company.stakeholder_count
     mode: replace
@@ -58,9 +64,6 @@ writes:
     mode: replace
   - from: answers.has_sales_manager
     to: team.has_sales_manager
-    mode: replace
-  - from: answers.total_revenue
-    to: company.total_revenue
     mode: replace
 
 steps:
@@ -110,15 +113,6 @@ steps:
       - { value: "270", label: "6 months to 1 year" }
       - { value: "400", label: "1 year+" }
 
-  - id: team_size
-    type: select
-    label: "How many people sell today, including you?"
-    options:
-      - { value: "1", label: "Just me" }
-      - { value: "2", label: "2-4" }
-      - { value: "5", label: "5-9" }
-      - { value: "10", label: "10+" }
-
   - id: stakeholder_count
     type: select
     label: "How many people are typically involved in a buying decision?"
@@ -153,15 +147,6 @@ steps:
     options:
       - { value: "yes", label: "Yes, regularly" }
       - { value: "no", label: "Rarely or never" }
-
-  - id: total_revenue
-    type: select
-    label: "What's your company's approximate annual revenue?"
-    options:
-      - { value: under_1m, label: "Under $1M" }
-      - { value: 1m_5m, label: "$1M-$5M" }
-      - { value: 5m_20m, label: "$5M-$20M" }
-      - { value: 20m_plus, label: "$20M+" }
 
   - type: output_preview
     shows_writes: true
