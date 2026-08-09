@@ -165,3 +165,13 @@ export function AlertTriangleIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function InfoIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5.5" />
+      <circle cx="12" cy="7.75" r="0.75" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
