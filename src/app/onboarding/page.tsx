@@ -23,20 +23,39 @@ export default async function OnboardingPage() {
     ...BUSINESS_KEYS,
     "respondent.role",
     "respondent.sales_experience",
+    "company.has_existing_motion",
+    "metrics.lead_sources",
   ]);
 
-  // Forced order (Business, then You) — respondent.role has to be known
-  // before the has_existing_motion fork on the next onboarding stop can
-  // decide whether that question even applies to this person, same
-  // reasoning as the design handoff's "You before Sales motion" rule.
+  // Forced order (Business, then You, then Sales Motion) — respondent.role
+  // has to be known before the has_existing_motion fork could even matter
+  // (a rep vs. a founder answering it means different things), and the
+  // fork itself has to be known before Metrics, since "no" skips Metrics
+  // entirely — a target the user invented can't diagnose itself.
   const businessDone = typeof context["company.name"] === "string" && context["company.name"] !== "";
   const roleDone = typeof context["respondent.role"] === "string" && context["respondent.role"] !== "";
   const experienceDone =
     typeof context["respondent.sales_experience"] === "string" && context["respondent.sales_experience"] !== "";
+  const hasExistingMotion = context["company.has_existing_motion"] as string | undefined;
+  const motionDone = hasExistingMotion === "yes" || hasExistingMotion === "no";
+  const leadSources = Array.isArray(context["metrics.lead_sources"]) ? context["metrics.lead_sources"] : [];
+  // "No" skips Metrics outright — nothing to defer or fill in for a
+  // zero-to-one founder. Re-deferring on reload (rather than remembering a
+  // prior defer) is an acceptable edge case, not a real resume bug — it
+  // just means asking again, not losing anything.
+  const metricsDone = hasExistingMotion === "no" || leadSources.length > 0;
 
-  if (businessDone && roleDone && experienceDone) redirect("/journey");
+  if (businessDone && roleDone && experienceDone && motionDone && metricsDone) redirect("/journey");
 
-  const initialStep = !businessDone ? "business" : !roleDone ? "role" : "experience";
+  const initialStep = !businessDone
+    ? "business"
+    : !roleDone
+      ? "role"
+      : !experienceDone
+        ? "experience"
+        : !motionDone
+          ? "motion"
+          : "metrics";
 
   return (
     <OnboardingFlow
@@ -44,6 +63,9 @@ export default async function OnboardingPage() {
       businessDone={businessDone}
       roleDone={roleDone}
       experienceDone={experienceDone}
+      motionDone={motionDone}
+      metricsDone={metricsDone}
+      hasExistingMotion={hasExistingMotion === "yes" || hasExistingMotion === "no" ? hasExistingMotion : null}
       initialBusiness={{
         domain: (context["company.domain"] as string) ?? "",
         name: (context["company.name"] as string) ?? "",
