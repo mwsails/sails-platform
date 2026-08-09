@@ -8,19 +8,18 @@
 # after this exercise's writes land, and writes company.recommended_tier +
 # team.has_sales_manager-derived tags back separately.
 #
-# Also seeds `company.has_existing_motion` (explicit, not inferred from
-# team_size — a solo founder can have real closed deals). has_existing_motion
-# is what the opp_rate Diagnostic Intake Layer gates on (see
-# opp-rate-check.yml), so a zero-to-one founder never gets asked for a
-# conversion rate on zero meetings.
-#
-# Used to also seed respondent.role/sales_experience and company.name/
-# product_name/category/pricing_model via a company_scrape url_scrape step —
-# both moved to the bespoke Business and Your role/experience onboarding
-# screens (forced order: Business, then You, then this). This exercise
-# doesn't read those fields itself so `reads`/`requires` stay empty, but the
-# app-level onboarding gate (src/app/onboarding) is what actually enforces
-# that both ran first, not a content-layer `requires`.
+# Used to also seed respondent.role/sales_experience, company.name/
+# product_name/category/pricing_model, and company.has_existing_motion —
+# all three moved to the bespoke Business/You/Sales-motion onboarding
+# screens (forced order: Business, You, Sales motion, then this).
+# has_existing_motion in particular is what the opp_rate Diagnostic Intake
+# Layer gates on (see opp-rate-check.yml), so a zero-to-one founder never
+# gets asked for a conversion rate on zero meetings — that gate still
+# works identically now that the field is written earlier in onboarding
+# instead of by this exercise. This exercise doesn't read any of those
+# fields itself so `reads`/`requires` stay empty, but the app-level
+# onboarding gate (src/app/onboarding) is what actually enforces that they
+# ran first, not a content-layer `requires`.
 slug: onboarding-diagnostic
 schema_version: 3
 title: "Your Sales Diagnostic"
@@ -35,9 +34,6 @@ requires: []
 writes:
   - from: answers.motion
     to: company.motion
-    mode: replace
-  - from: answers.has_existing_motion
-    to: company.has_existing_motion
     mode: replace
   - from: answers.acv
     to: company.acv
@@ -81,13 +77,6 @@ steps:
     options:
       - { value: founder_led, label: "Founder-led — it's mostly me" }
       - { value: team_selling, label: "Team selling — I have reps" }
-
-  - id: has_existing_motion
-    type: select
-    label: "Have you closed real deals with real customers yet?"
-    options:
-      - { value: "yes", label: "Yes — we have an existing motion and real numbers to look at" }
-      - { value: "no", label: "No — we're just getting started" }
 
   - id: has_sales_manager
     type: select

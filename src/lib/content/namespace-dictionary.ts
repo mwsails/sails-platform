@@ -304,6 +304,37 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
       confidence: scalar,
       reasoning: scalar,
     }),
+    // Real funnel data by lead source, from the bespoke Sales Motion
+    // onboarding screen (src/app/onboarding) — a different, coexisting
+    // signal from opp_rate_signals/actuals above, not a replacement. Those
+    // are a rough self-assessment used before real numbers exist; this is
+    // the funnel once they do. Only leads/sets/meetings/opportunities/
+    // closed_won/arr/cycle_length_days are ever user-typed — set_rate/
+    // keep_rate/opp_rate/close_rate/arpa/velocity are computed server-side
+    // at write time and stored alongside them so downstream readers (the
+    // CRO, a future Firmographic ICP screen) don't recompute from raw
+    // counts, but a typed rate can never disagree with its own counts,
+    // because nothing ever types one.
+    lead_sources: arrayOf({
+      source: scalar, // "cold_outbound" | "inbound" | "referral" | "lost_opportunities" | "partners" | "events"
+      leads: scalar,
+      sets: scalar,
+      meetings: scalar,
+      opportunities: scalar,
+      closed_won: scalar,
+      arr: scalar,
+      cycle_length_days: scalar,
+      set_rate: scalar,
+      keep_rate: scalar,
+      opp_rate: scalar,
+      close_rate: scalar,
+      arpa: scalar,
+      velocity: scalar,
+    }),
+    // Blended across all entered sources — opportunity-weighted, not a
+    // straight mean (see computeLeadSourceMetrics). Derived, never typed,
+    // same reasoning as the per-source rates above.
+    velocity: scalar,
   },
 
   // Minimal for now — a log of generated Awareness scenarios within

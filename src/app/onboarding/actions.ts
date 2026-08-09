@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-org";
 import { writeContext } from "@/lib/context/store";
 import { scrapeAndExtract } from "@/lib/scrape/firecrawl";
+import { computeSourceMetrics, computeBlended, type SourceInput } from "@/lib/onboarding/metrics";
 
 const BUSINESS_FIELDS = [
   { name: "name", label: "Company name" },
@@ -92,6 +93,83 @@ export async function saveExperience(salesExperience: string) {
     user.id,
     [{ from: "answers.sales_experience", to: "respondent.sales_experience", mode: "replace" }],
     { sales_experience: salesExperience },
+    "manual",
+    null
+  );
+  revalidatePath("/onboarding");
+}
+
+/** Sales Motion bucket, step 1 — the existing-motion fork. Org-scoped: shared company fact, not per-rep. Gates whether the Metrics screen is even reachable — a zero-to-one founder never sees it. */
+export async function saveHasExistingMotion(hasExistingMotion: "yes" | "no") {
+  const supabase = await createClient();
+  const user = await getCurrentUser(supabase);
+  if (!user) throw new Error("not authenticated");
+
+  await writeContext(
+    supabase,
+    user.orgId,
+    user.id,
+    [{ from: "answers.has_existing_motion", to: "company.has_existing_motion", mode: "replace" }],
+    { has_existing_motion: hasExistingMotion },
+    "manual",
+    null
+  );
+  revalidatePath("/onboarding");
+}
+
+/**
+ * Sales Motion bucket, step 2 — the funnel-by-source screen. Only
+ * leads/sets/meetings/opportunities/closed_won/arr/cycle_length_days ever
+ * reach here as typed input; every rate is recomputed server-side from
+ * those counts before writing, same reasoning as computeSourceMetrics'
+ * doc comment — the client shows a live preview using the same shared
+ * function, but what gets persisted is never the client's number.
+ */
+export async function saveLeadSources(sources: SourceInput[]) {
+  const supabase = await createClient();
+  const user = await getCurrentUser(supabase);
+  if (!user) throw new Error("not authenticated");
+
+  const computed = sources.map(computeSourceMetrics);
+  const blended = computeBlended(computed);
+
+  await writeContext(
+    supabase,
+    user.orgId,
+    user.id,
+    [
+      { from: "answers.lead_sources", to: "metrics.lead_sources", mode: "replace" },
+      { from: "answers.velocity", to: "metrics.velocity", mode: "replace" },
+    ],
+    { lead_sources: computed, velocity: blended.velocity },
+    "manual",
+    null
+  );
+  revalidatePath("/onboarding");
+}
+
+/** Sales Motion bucket, step 2 deferred — "I'll pull these later." Writes a commitment instead of fake data, so the CRO has a real blocked state to point at rather than diagnosing off nothing. */
+export async function deferLeadSources() {
+  const supabase = await createClient();
+  const user = await getCurrentUser(supabase);
+  if (!user) throw new Error("not authenticated");
+
+  const now = new Date().toISOString();
+  await writeContext(
+    supabase,
+    user.orgId,
+    user.id,
+    [{ from: "answers.commitment", to: "rep.commitments", mode: "append" }],
+    {
+      commitment: {
+        agent: "cro",
+        subject: "Bring your real funnel numbers by lead source",
+        promised_on: now,
+        due: "",
+        status: "open",
+        user_id: user.id,
+      },
+    },
     "manual",
     null
   );

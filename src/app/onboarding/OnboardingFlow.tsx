@@ -1,11 +1,20 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { scrapeBusiness, saveBusiness, saveRole, saveExperience } from "./actions";
-import { CheckCircleIcon, CircleIcon, SparkleIcon, ArrowRightIcon } from "@/components/icons";
+import {
+  scrapeBusiness,
+  saveBusiness,
+  saveRole,
+  saveExperience,
+  saveHasExistingMotion,
+  saveLeadSources,
+  deferLeadSources,
+} from "./actions";
+import { computeSourceMetrics, computeBlended, LEAD_SOURCES, type SourceInput } from "@/lib/onboarding/metrics";
+import { CheckCircleIcon, CircleIcon, SparkleIcon, ArrowRightIcon, PlusIcon, XIcon } from "@/components/icons";
 
-type Step = "business" | "role" | "experience";
+type Step = "business" | "role" | "experience" | "motion" | "metrics";
 
 type BusinessFields = {
   domain: string;
@@ -26,10 +35,12 @@ const BUSINESS_FIELD_LABELS: { name: keyof BusinessFields; label: string }[] = [
   { name: "stage", label: "Company stage" },
 ];
 
-const STEPS: { id: Step; label: string }[] = [
-  { id: "business", label: "Your business" },
-  { id: "role", label: "Your role" },
-  { id: "experience", label: "Your experience" },
+const ALL_STEPS: { id: Step; label: string; bucket: string }[] = [
+  { id: "business", label: "Your business", bucket: "Business" },
+  { id: "role", label: "Your role", bucket: "You" },
+  { id: "experience", label: "Your experience", bucket: "You" },
+  { id: "motion", label: "Existing motion?", bucket: "Sales motion" },
+  { id: "metrics", label: "Metrics by source", bucket: "Sales motion" },
 ];
 
 const fieldClass =
@@ -48,29 +59,50 @@ export function OnboardingFlow({
   businessDone,
   roleDone,
   experienceDone,
+  motionDone,
+  metricsDone,
+  hasExistingMotion,
   initialBusiness,
 }: {
   initialStep: Step;
   businessDone: boolean;
   roleDone: boolean;
   experienceDone: boolean;
+  motionDone: boolean;
+  metricsDone: boolean;
+  hasExistingMotion: "yes" | "no" | null;
   initialBusiness: BusinessFields;
 }) {
   const [step, setStep] = useState<Step>(initialStep);
-  const [done, setDone] = useState({ business: businessDone, role: roleDone, experience: experienceDone });
+  const [done, setDone] = useState({
+    business: businessDone,
+    role: roleDone,
+    experience: experienceDone,
+    motion: motionDone,
+    metrics: metricsDone,
+  });
+  const [motionAnswer, setMotionAnswer] = useState<"yes" | "no" | null>(hasExistingMotion);
   const router = useRouter();
 
-  function advance(from: Step, to: Step | "finish") {
-    setDone((prev) => ({ ...prev, [from]: true }));
-    if (to === "finish") {
-      router.push("/journey");
-      router.refresh();
+  function finish() {
+    router.push("/journey");
+    router.refresh();
+  }
+
+  function advanceFromMotion(answer: "yes" | "no") {
+    setMotionAnswer(answer);
+    setDone((prev) => ({ ...prev, motion: true }));
+    if (answer === "no") {
+      finish();
     } else {
-      setStep(to);
+      setStep("metrics");
     }
   }
 
-  const stepIndex = STEPS.findIndex((s) => s.id === step);
+  // "No" removes Metrics from the visible flow entirely — a target the
+  // user invented can't diagnose itself, so there's nothing to show.
+  const visibleSteps = ALL_STEPS.filter((s) => s.id !== "metrics" || motionAnswer !== "no");
+  const stepIndex = visibleSteps.findIndex((s) => s.id === step);
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -82,42 +114,87 @@ export function OnboardingFlow({
           <div className="font-[family-name:var(--font-serif)] text-xl font-semibold tracking-tight">SAILS</div>
           <p className="mt-1 text-xs text-white/50">Onboarding</p>
 
-          <ol className="mt-10 flex flex-col gap-1">
-            {STEPS.map((s) => {
-              const isDone = done[s.id];
-              const isCurrent = s.id === step;
-              return (
-                <li key={s.id}>
-                  <div
-                    className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors duration-150 ${
-                      isCurrent ? "bg-white/12 font-medium text-white" : isDone ? "text-white/85" : "text-white/35"
-                    }`}
-                  >
-                    {isDone ? (
-                      <CheckCircleIcon className="h-4 w-4 shrink-0 text-white" />
-                    ) : (
-                      <CircleIcon className="h-4 w-4 shrink-0" />
-                    )}
-                    {s.label}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
+          <div className="mt-10 flex flex-col gap-4">
+            {Object.entries(
+              visibleSteps.reduce<Record<string, typeof visibleSteps>>((acc, s) => {
+                (acc[s.bucket] ??= []).push(s);
+                return acc;
+              }, {})
+            ).map(([bucket, items]) => (
+              <div key={bucket}>
+                <p className="px-3 text-[10px] font-semibold tracking-[0.14em] text-white/35 uppercase">{bucket}</p>
+                <ol className="mt-1 flex flex-col gap-1">
+                  {items.map((s) => {
+                    const isDone = done[s.id];
+                    const isCurrent = s.id === step;
+                    return (
+                      <li key={s.id}>
+                        <div
+                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors duration-150 ${
+                            isCurrent
+                              ? "bg-white/12 font-medium text-white"
+                              : isDone
+                                ? "text-white/85"
+                                : "text-white/35"
+                          }`}
+                        >
+                          {isDone ? (
+                            <CheckCircleIcon className="h-4 w-4 shrink-0 text-white" />
+                          ) : (
+                            <CircleIcon className="h-4 w-4 shrink-0" />
+                          )}
+                          {s.label}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            ))}
+          </div>
         </div>
 
         <p className="text-xs text-white/40">
-          Step {stepIndex + 1} of {STEPS.length}
+          Step {stepIndex + 1} of {visibleSteps.length}
         </p>
       </aside>
 
       <main className="flex-1 bg-[var(--background-tint)] px-6 py-14 sm:px-14">
         <div className="mx-auto max-w-xl">
           {step === "business" && (
-            <BusinessStep initial={initialBusiness} onDone={() => advance("business", "role")} />
+            <BusinessStep
+              initial={initialBusiness}
+              onDone={() => {
+                setDone((prev) => ({ ...prev, business: true }));
+                setStep("role");
+              }}
+            />
           )}
-          {step === "role" && <RoleStep onDone={() => advance("role", "experience")} />}
-          {step === "experience" && <ExperienceStep onDone={() => advance("experience", "finish")} />}
+          {step === "role" && (
+            <RoleStep
+              onDone={() => {
+                setDone((prev) => ({ ...prev, role: true }));
+                setStep("experience");
+              }}
+            />
+          )}
+          {step === "experience" && (
+            <ExperienceStep
+              onDone={() => {
+                setDone((prev) => ({ ...prev, experience: true }));
+                setStep("motion");
+              }}
+            />
+          )}
+          {step === "motion" && <MotionStep onDone={advanceFromMotion} />}
+          {step === "metrics" && (
+            <MetricsStep
+              onDone={() => {
+                setDone((prev) => ({ ...prev, metrics: true }));
+                finish();
+              }}
+            />
+          )}
         </div>
       </main>
     </div>
@@ -229,7 +306,12 @@ function BusinessStep({ initial, onDone }: { initial: BusinessFields; onDone: ()
               </label>
             ))}
           </div>
-          <button type="button" onClick={confirm} disabled={isPending || fields.name.trim() === ""} className={primaryButtonClass}>
+          <button
+            type="button"
+            onClick={confirm}
+            disabled={isPending || fields.name.trim() === ""}
+            className={primaryButtonClass}
+          >
             Looks right — continue <ArrowRightIcon className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -336,8 +418,217 @@ function ExperienceStep({ onDone }: { onDone: () => void }) {
         ]}
       />
       <button type="button" onClick={confirm} disabled={isPending || !experience} className={primaryButtonClass}>
-        Continue to your diagnostic <ArrowRightIcon className="h-3.5 w-3.5" />
+        Continue <ArrowRightIcon className="h-3.5 w-3.5" />
       </button>
+    </div>
+  );
+}
+
+function MotionStep({ onDone }: { onDone: (answer: "yes" | "no") => void }) {
+  const [answer, setAnswer] = useState<"yes" | "no" | "">("");
+  const [isPending, startTransition] = useTransition();
+
+  function confirm() {
+    if (!answer) return;
+    startTransition(async () => {
+      await saveHasExistingMotion(answer);
+      onDone(answer);
+    });
+  }
+
+  return (
+    <div>
+      <span className={eyebrowClass}>Onboarding · Sales motion</span>
+      <h1 className={headlineClass}>Do you have an existing sales motion?</h1>
+      <p className="mt-3 text-[15px] leading-relaxed text-muted">
+        One fork, used everywhere after this — if you&apos;re still zero to one, the next screen won&apos;t ask you
+        for real funnel numbers you don&apos;t have yet.
+      </p>
+      <OptionList
+        value={answer}
+        onChange={(v) => setAnswer(v as "yes" | "no")}
+        options={[
+          { value: "yes", label: "Yes — we have an existing motion and real numbers to look at" },
+          { value: "no", label: "No — we're just getting started" },
+        ]}
+      />
+      <button type="button" onClick={confirm} disabled={isPending || !answer} className={primaryButtonClass}>
+        Continue <ArrowRightIcon className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
+const EMPTY_SOURCE: Omit<SourceInput, "source"> = {
+  leads: 0,
+  sets: 0,
+  meetings: 0,
+  opportunities: 0,
+  closed_won: 0,
+  arr: 0,
+  cycle_length_days: 0,
+};
+
+const COUNT_FIELDS: { name: keyof typeof EMPTY_SOURCE; label: string }[] = [
+  { name: "leads", label: "Leads" },
+  { name: "sets", label: "Meetings set" },
+  { name: "meetings", label: "Meetings held" },
+  { name: "opportunities", label: "Opportunities" },
+  { name: "closed_won", label: "Closed won" },
+  { name: "arr", label: "ARR ($)" },
+  { name: "cycle_length_days", label: "Cycle length (days)" },
+];
+
+function formatPct(n: number) {
+  return `${Math.round(n * 100)}%`;
+}
+function formatMoney(n: number) {
+  return `$${Math.round(n).toLocaleString()}`;
+}
+
+function MetricsStep({ onDone }: { onDone: () => void }) {
+  const [enabled, setEnabled] = useState<Record<string, boolean>>({});
+  const [rows, setRows] = useState<Record<string, Omit<SourceInput, "source">>>({});
+  const [isPending, startTransition] = useTransition();
+
+  function toggle(source: string) {
+    setEnabled((prev) => ({ ...prev, [source]: !prev[source] }));
+    setRows((prev) => (prev[source] ? prev : { ...prev, [source]: { ...EMPTY_SOURCE } }));
+  }
+
+  function updateField(source: string, field: keyof typeof EMPTY_SOURCE, value: string) {
+    const n = Number(value.replace(/[^0-9.]/g, "")) || 0;
+    setRows((prev) => ({ ...prev, [source]: { ...prev[source], [field]: n } }));
+  }
+
+  const activeSources: SourceInput[] = LEAD_SOURCES.filter((s) => enabled[s.value]).map((s) => ({
+    source: s.value,
+    ...(rows[s.value] ?? EMPTY_SOURCE),
+  }));
+  const computed = useMemo(() => activeSources.map(computeSourceMetrics), [activeSources]);
+  const blended = useMemo(() => computeBlended(computed), [computed]);
+  const hasAnyData = activeSources.length > 0;
+
+  function confirm() {
+    startTransition(async () => {
+      await saveLeadSources(activeSources);
+      onDone();
+    });
+  }
+
+  function defer() {
+    startTransition(async () => {
+      await deferLeadSources();
+      onDone();
+    });
+  }
+
+  return (
+    <div>
+      <span className={eyebrowClass}>Onboarding · Sales motion</span>
+      <h1 className={headlineClass}>Metrics, by lead source</h1>
+      <p className="mt-3 text-[15px] leading-relaxed text-muted">
+        Turn on the sources you actually track. Enter counts only — set rate, keep rate, opp rate, close rate, ARPA,
+        and velocity are always calculated, never typed, so a number here can never disagree with your own counts.
+      </p>
+
+      {hasAnyData && (
+        <div className="mt-6 rounded-2xl border border-[var(--sails-blue)]/30 bg-[var(--sails-blue-light)] p-4">
+          <p className={pillClass + " bg-white/60"}>All sources</p>
+          <div className="mt-3 grid grid-cols-3 gap-x-4 gap-y-2 text-sm sm:grid-cols-6">
+            <Stat label="Set rate" value={formatPct(blended.setRate)} />
+            <Stat label="Keep rate" value={formatPct(blended.keepRate)} />
+            <Stat label="Opp rate" value={formatPct(blended.oppRate)} />
+            <Stat label="Close rate" value={formatPct(blended.closeRate)} />
+            <Stat label="ARPA" value={formatMoney(blended.arpa)} />
+            <Stat label="Velocity/day" value={formatMoney(blended.velocity)} />
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6 flex flex-col gap-3">
+        {LEAD_SOURCES.map((s) => {
+          const isOn = !!enabled[s.value];
+          const row = rows[s.value] ?? EMPTY_SOURCE;
+          const sourceComputed = isOn ? computeSourceMetrics({ source: s.value, ...row }) : null;
+          return (
+            <div
+              key={s.value}
+              className={`rounded-2xl border bg-[var(--background)] shadow-[var(--shadow-soft)] transition-colors duration-150 ${
+                isOn ? "border-[var(--sails-blue)]/30" : "border-[var(--sails-border)]"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => toggle(s.value)}
+                className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
+              >
+                <span className="text-sm font-medium text-[var(--foreground)]">{s.label}</span>
+                <span
+                  className={`flex h-6 w-6 items-center justify-center rounded-full ${
+                    isOn ? "bg-[var(--sails-blue)] text-white" : "bg-[var(--sails-gray)] text-faint"
+                  }`}
+                >
+                  {isOn ? <XIcon className="h-3.5 w-3.5" /> : <PlusIcon className="h-3.5 w-3.5" />}
+                </span>
+              </button>
+
+              {isOn && (
+                <div className="border-t border-[var(--sails-border)] p-4">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {COUNT_FIELDS.map((f) => (
+                      <label key={f.name} className="block">
+                        <span className="text-xs font-medium text-muted">{f.label}</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={row[f.name] === 0 ? "" : String(row[f.name])}
+                          onChange={(e) => updateField(s.value, f.name, e.target.value)}
+                          placeholder="0"
+                          className={fieldClass}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  {sourceComputed && (
+                    <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 border-t border-[var(--sails-border)] pt-3 text-xs text-muted">
+                      <span>Set {formatPct(sourceComputed.set_rate)}</span>
+                      <span>Keep {formatPct(sourceComputed.keep_rate)}</span>
+                      <span>Opp {formatPct(sourceComputed.opp_rate)}</span>
+                      <span>Close {formatPct(sourceComputed.close_rate)}</span>
+                      <span>ARPA {formatMoney(sourceComputed.arpa)}</span>
+                      <span>Velocity {formatMoney(sourceComputed.velocity)}/day</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-6 flex items-center gap-4">
+        <button type="button" onClick={confirm} disabled={isPending || !hasAnyData} className={primaryButtonClass}>
+          Looks right — continue <ArrowRightIcon className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={defer}
+          disabled={isPending}
+          className="text-xs text-muted underline decoration-dotted hover:text-[var(--foreground)]"
+        >
+          I&apos;ll pull these later
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[10px] font-medium tracking-wide text-[var(--sails-blue)] uppercase">{label}</div>
+      <div className="text-sm font-semibold text-[var(--foreground)]">{value}</div>
     </div>
   );
 }
