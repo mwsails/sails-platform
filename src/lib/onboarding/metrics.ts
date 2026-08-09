@@ -104,3 +104,20 @@ export const LEAD_SOURCES: { value: string; label: string }[] = [
   { value: "partners", label: "Partners" },
   { value: "events", label: "Events & conferences" },
 ];
+
+/**
+ * Fixed, not user-selectable. Letting people choose monthly/quarterly/
+ * annually would make the numbers non-comparable — the CRO can't
+ * benchmark velocity against a segment median if every org reports a
+ * different-length window, and one org's own history becomes inconsistent
+ * if they switch periods between visits. 90 days (one quarter) is the
+ * standard sales-ops cadence for exactly this reason: long enough to
+ * smooth out a slow source's noise, short enough to still be current for a
+ * platform built around fast diagnosis.
+ */
+export const REPORTING_PERIOD_DAYS = 90;
+
+/** Which of the six suggested sources a rep left off — a custom source is never "unused", it was never suggested in the first place. */
+export function computeUnusedSources(activeSourceValues: string[]): string[] {
+  return LEAD_SOURCES.map((s) => s.value).filter((v) => !activeSourceValues.includes(v));
+}

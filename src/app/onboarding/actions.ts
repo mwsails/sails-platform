@@ -5,7 +5,13 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-org";
 import { writeContext } from "@/lib/context/store";
 import { scrapeAndExtract } from "@/lib/scrape/firecrawl";
-import { computeSourceMetrics, computeBlended, type SourceInput } from "@/lib/onboarding/metrics";
+import {
+  computeSourceMetrics,
+  computeBlended,
+  computeUnusedSources,
+  REPORTING_PERIOD_DAYS,
+  type SourceInput,
+} from "@/lib/onboarding/metrics";
 
 const BUSINESS_FIELDS = [
   { name: "name", label: "Company name" },
@@ -132,6 +138,7 @@ export async function saveLeadSources(sources: SourceInput[]) {
 
   const computed = sources.map(computeSourceMetrics);
   const blended = computeBlended(computed);
+  const unusedSources = computeUnusedSources(sources.map((s) => s.source));
 
   await writeContext(
     supabase,
@@ -140,8 +147,15 @@ export async function saveLeadSources(sources: SourceInput[]) {
     [
       { from: "answers.lead_sources", to: "metrics.lead_sources", mode: "replace" },
       { from: "answers.velocity", to: "metrics.velocity", mode: "replace" },
+      { from: "answers.reporting_period_days", to: "metrics.reporting_period_days", mode: "replace" },
+      { from: "answers.unused_sources", to: "metrics.unused_sources", mode: "replace" },
     ],
-    { lead_sources: computed, velocity: blended.velocity },
+    {
+      lead_sources: computed,
+      velocity: blended.velocity,
+      reporting_period_days: REPORTING_PERIOD_DAYS,
+      unused_sources: unusedSources,
+    },
     "manual",
     null
   );
