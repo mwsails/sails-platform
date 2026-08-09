@@ -55,6 +55,20 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
     // Written by recommend.ts, not by the diagnostic exercise directly —
     // the one tier-deciding field every other namespace/module keys off.
     recommended_tier: scalar,
+    // Written by the bespoke Business onboarding screen (not an exercise —
+    // see src/app/onboarding), scrape-sourced then reviewed/corrected on
+    // the same screen, same "propose, don't assume" pattern as everywhere
+    // else. domain is the raw input; the rest come back from
+    // scrapeAndExtract. what_you_sell/capabilities/proof/stage are
+    // deliberately separate from the older product_name/category pair
+    // above rather than replacing them — product_name/category still feed
+    // existing exercises and prompts, these are the fuller Business-bucket
+    // shape the new onboarding flow actually asks for.
+    domain: scalar,
+    what_you_sell: scalar,
+    capabilities: scalar,
+    proof: scalar,
+    stage: scalar,
   },
 
   // Who is answering, not what the business is — orthogonal to company.*.
