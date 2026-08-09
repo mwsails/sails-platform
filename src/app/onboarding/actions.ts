@@ -123,8 +123,26 @@ export async function saveHasExistingMotion(hasExistingMotion: "yes" | "no") {
   revalidatePath("/onboarding");
 }
 
+/** Sales Motion bucket, step 2 — headcount by role. org-scoped (a team roster is a company fact, not a personal one) — only reachable when has_existing_motion is "yes", a zero-to-one founder has no roles to report. Separate from team.has_sales_manager, which drives track routing and isn't touched here. */
+export async function saveTeamRoles(roles: { role: string; count: number }[]) {
+  const supabase = await createClient();
+  const user = await getCurrentUser(supabase);
+  if (!user) throw new Error("not authenticated");
+
+  await writeContext(
+    supabase,
+    user.orgId,
+    user.id,
+    [{ from: "answers.roles", to: "team.current_roles", mode: "replace" }],
+    { roles },
+    "manual",
+    null
+  );
+  revalidatePath("/onboarding");
+}
+
 /**
- * Sales Motion bucket, step 2 — the funnel-by-source screen. Only
+ * Sales Motion bucket, step 3 — the funnel-by-source screen. Only
  * leads/sets/meetings/opportunities/closed_won/arr/cycle_length_days ever
  * reach here as typed input; every rate is recomputed server-side from
  * those counts before writing, same reasoning as computeSourceMetrics'

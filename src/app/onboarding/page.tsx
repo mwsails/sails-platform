@@ -24,6 +24,7 @@ export default async function OnboardingPage() {
     "respondent.role",
     "respondent.sales_experience",
     "company.has_existing_motion",
+    "team.current_roles",
     "metrics.lead_sources",
   ]);
 
@@ -38,6 +39,12 @@ export default async function OnboardingPage() {
     typeof context["respondent.sales_experience"] === "string" && context["respondent.sales_experience"] !== "";
   const hasExistingMotion = context["company.has_existing_motion"] as string | undefined;
   const motionDone = hasExistingMotion === "yes" || hasExistingMotion === "no";
+  // Presence, not length — someone with a real existing motion can
+  // legitimately have zero headcount in any listed role (a founder who's
+  // closed real deals but hasn't hired yet), so an empty array is a valid,
+  // completed answer here, unlike Metrics below where the confirm button
+  // itself is disabled until at least one source has data.
+  const teamDone = hasExistingMotion === "no" || "team.current_roles" in context;
   const leadSources = Array.isArray(context["metrics.lead_sources"]) ? context["metrics.lead_sources"] : [];
   // "No" skips Metrics outright — nothing to defer or fill in for a
   // zero-to-one founder. Re-deferring on reload (rather than remembering a
@@ -45,7 +52,7 @@ export default async function OnboardingPage() {
   // just means asking again, not losing anything.
   const metricsDone = hasExistingMotion === "no" || leadSources.length > 0;
 
-  if (businessDone && roleDone && experienceDone && motionDone && metricsDone) redirect("/journey");
+  if (businessDone && roleDone && experienceDone && motionDone && teamDone && metricsDone) redirect("/journey");
 
   const initialStep = !businessDone
     ? "business"
@@ -55,7 +62,9 @@ export default async function OnboardingPage() {
         ? "experience"
         : !motionDone
           ? "motion"
-          : "metrics";
+          : !teamDone
+            ? "team"
+            : "metrics";
 
   return (
     <OnboardingFlow
@@ -64,6 +73,7 @@ export default async function OnboardingPage() {
       roleDone={roleDone}
       experienceDone={experienceDone}
       motionDone={motionDone}
+      teamDone={teamDone}
       metricsDone={metricsDone}
       hasExistingMotion={hasExistingMotion === "yes" || hasExistingMotion === "no" ? hasExistingMotion : null}
       initialBusiness={{
