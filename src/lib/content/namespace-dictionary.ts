@@ -31,29 +31,30 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
     product_name: scalar,
     category: scalar,
     pricing_model: scalar,
+    // acv/cycle_length_days/stakeholder_count/target_customer_size/
+    // procurement_involved/buyer_title are written by the Customer bucket's
+    // two bespoke onboarding screens (src/app/onboarding/actions.ts —
+    // saveCustomerProfile, saveDealShape), not by an exercise. motion is
+    // derived, not asked directly — see saveHasExistingMotion/saveTeamRoles
+    // in that same file. All formerly came from onboarding-diagnostic.yml,
+    // now retired (see that file's header comment for the full mapping).
     acv: scalar,
     cycle_length_days: scalar,
-    motion: scalar,
-    team_size: scalar,
+    motion: scalar, // "founder_led" | "team_selling", derived, see above
     stakeholder_count: scalar,
-    // Added for SMB/Mid-Market/Enterprise tier routing (recommend.ts) —
-    // target_customer_size/procurement_involved/buyer_title feed the score;
-    // total_revenue is context/coaching-depth only, deliberately NOT used
-    // for routing (revenue doesn't reliably predict deal motion — a $50M
-    // company can still run small transactional deals).
     target_customer_size: scalar,
     procurement_involved: scalar,
     buyer_title: scalar,
-    total_revenue: scalar,
-    // Explicit, not inferred from team_size — a solo founder can still have
+    // Explicit, not inferred from headcount — a solo founder can still have
     // real closed deals and real funnel numbers, and a team of 3 can be six
     // months old with nothing to report yet. Gates whether metrics.* and
     // the opp_rate Diagnostic Intake Layer are even asked (see
     // opp-rate-check.yml's requires) instead of asking a founder for a
     // conversion rate on zero meetings.
     has_existing_motion: scalar, // "yes" | "no"
-    // Written by recommend.ts, not by the diagnostic exercise directly —
-    // the one tier-deciding field every other namespace/module keys off.
+    // Written by recommendTrack, called from saveDealShape once its last
+    // required input is known (src/app/onboarding/actions.ts) — the one
+    // tier-deciding field every other namespace/module keys off.
     recommended_tier: scalar,
     // Written by the bespoke Business onboarding screen (not an exercise —
     // see src/app/onboarding), scrape-sourced then reviewed/corrected on
@@ -433,6 +434,11 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
     comp_philosophy: scalar,
     interview_scorecard: arrayOf({ competency: scalar, question: scalar }),
     // Drives the "sales-leadership" cross-cutting track tag (recommend.ts).
+    // Formerly its own standalone onboarding question (onboarding-
+    // diagnostic.yml, now retired); derived instead from current_roles
+    // below in saveTeamRoles (src/app/onboarding/actions.ts) — "yes" iff a
+    // "sales_leader" role has count > 0 — once asking twice for the same
+    // fact would have been redundant.
     has_sales_manager: scalar,
     // Headcount by role, from the bespoke Sales Motion onboarding screen
     // (src/app/onboarding, not an exercise) — only asked when
@@ -440,11 +446,9 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
     // since a zero-to-one founder has no roles to report yet. `role` is one
     // of TEAM_ROLES (src/lib/onboarding/team.ts) or a slugified custom
     // role, same "fixed list is a UI convenience, not a validated enum"
-    // pattern as metrics.lead_sources[].source. Separate from the existing
-    // has_sales_manager yes/no signal above (that drives track routing,
-    // this is the fuller breakdown for coaching depth) — deliberately not
-    // derived from each other, so recommend.ts's existing routing logic
-    // stays untouched.
+    // pattern as metrics.lead_sources[].source. has_sales_manager and
+    // company.motion above are both derived from this array in
+    // saveTeamRoles, not asked as separate questions.
     current_roles: arrayOf({ role: scalar, count: scalar }),
   },
 };

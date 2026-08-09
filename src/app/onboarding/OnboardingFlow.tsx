@@ -11,12 +11,14 @@ import {
   saveTeamRoles,
   saveLeadSources,
   deferLeadSources,
+  saveCustomerProfile,
+  saveDealShape,
 } from "./actions";
 import { computeSourceMetrics, computeBlended, LEAD_SOURCES, type SourceInput } from "@/lib/onboarding/metrics";
 import { TEAM_ROLES } from "@/lib/onboarding/team";
 import { CheckCircleIcon, CircleIcon, SparkleIcon, ArrowRightIcon, PlusIcon, XIcon, InfoIcon } from "@/components/icons";
 
-type Step = "business" | "role" | "experience" | "motion" | "team" | "metrics";
+type Step = "business" | "role" | "experience" | "motion" | "team" | "metrics" | "customer" | "deal-shape";
 
 type BusinessFields = {
   domain: string;
@@ -44,6 +46,52 @@ const ALL_STEPS: { id: Step; label: string; bucket: string }[] = [
   { id: "motion", label: "Existing motion?", bucket: "Sales motion" },
   { id: "team", label: "Your team", bucket: "Sales motion" },
   { id: "metrics", label: "Metrics by source", bucket: "Sales motion" },
+  { id: "customer", label: "Who you sell to", bucket: "Customer" },
+  { id: "deal-shape", label: "Your deal shape", bucket: "Customer" },
+];
+
+const COMPANY_SIZE_OPTIONS = [
+  { value: "micro", label: "Under 20 employees" },
+  { value: "small", label: "20-100 employees" },
+  { value: "mid_size", label: "100-1,000 employees" },
+  { value: "large", label: "1,000+ employees" },
+];
+
+const BUYER_TITLE_OPTIONS = [
+  { value: "owner_founder", label: "Owner / Founder" },
+  { value: "manager", label: "Manager" },
+  { value: "director", label: "Director" },
+  { value: "vp", label: "VP" },
+  { value: "c_suite", label: "C-suite" },
+];
+
+const ACV_OPTIONS = [
+  { value: "3000", label: "Under $5K" },
+  { value: "10000", label: "$5K-$15K" },
+  { value: "20000", label: "$15K-$25K" },
+  { value: "40000", label: "$25K-$50K" },
+  { value: "75000", label: "$50K-$100K" },
+  { value: "150000", label: "$100K+" },
+];
+
+const CYCLE_LENGTH_OPTIONS = [
+  { value: "20", label: "Under 1 month" },
+  { value: "60", label: "1 month to 3 months" },
+  { value: "135", label: "3 to 6 months" },
+  { value: "270", label: "6 months to 1 year" },
+  { value: "400", label: "1 year+" },
+];
+
+const STAKEHOLDER_COUNT_OPTIONS = [
+  { value: "1", label: "Just one" },
+  { value: "2", label: "2-3" },
+  { value: "4", label: "4-5" },
+  { value: "6", label: "6+" },
+];
+
+const PROCUREMENT_OPTIONS = [
+  { value: "yes", label: "Yes, regularly" },
+  { value: "no", label: "Rarely or never" },
 ];
 
 const fieldClass =
@@ -65,6 +113,8 @@ export function OnboardingFlow({
   motionDone,
   teamDone,
   metricsDone,
+  customerDone,
+  dealShapeDone,
   hasExistingMotion,
   initialBusiness,
 }: {
@@ -75,6 +125,8 @@ export function OnboardingFlow({
   motionDone: boolean;
   teamDone: boolean;
   metricsDone: boolean;
+  customerDone: boolean;
+  dealShapeDone: boolean;
   hasExistingMotion: "yes" | "no" | null;
   initialBusiness: BusinessFields;
 }) {
@@ -86,6 +138,8 @@ export function OnboardingFlow({
     motion: motionDone,
     team: teamDone,
     metrics: metricsDone,
+    customer: customerDone,
+    "deal-shape": dealShapeDone,
   });
   const [motionAnswer, setMotionAnswer] = useState<"yes" | "no" | null>(hasExistingMotion);
   const router = useRouter();
@@ -95,14 +149,14 @@ export function OnboardingFlow({
     router.refresh();
   }
 
+  // "No" skips straight to Customer — a zero-to-one founder has no team or
+  // funnel to report, but still has a target market and expected deal
+  // shape worth capturing now, same reasoning as onboarding capturing
+  // Business before any revenue exists.
   function advanceFromMotion(answer: "yes" | "no") {
     setMotionAnswer(answer);
     setDone((prev) => ({ ...prev, motion: true }));
-    if (answer === "no") {
-      finish();
-    } else {
-      setStep("team");
-    }
+    setStep(answer === "no" ? "customer" : "team");
   }
 
   // "No" removes Team and Metrics from the visible flow entirely — a
@@ -205,6 +259,22 @@ export function OnboardingFlow({
             <MetricsStep
               onDone={() => {
                 setDone((prev) => ({ ...prev, metrics: true }));
+                setStep("customer");
+              }}
+            />
+          )}
+          {step === "customer" && (
+            <CustomerStep
+              onDone={() => {
+                setDone((prev) => ({ ...prev, customer: true }));
+                setStep("deal-shape");
+              }}
+            />
+          )}
+          {step === "deal-shape" && (
+            <DealShapeStep
+              onDone={() => {
+                setDone((prev) => ({ ...prev, "deal-shape": true }));
                 finish();
               }}
             />
@@ -364,6 +434,34 @@ function OptionList({
         </label>
       ))}
     </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-medium text-muted">{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className={fieldClass}>
+        <option value="" disabled>
+          Select one
+        </option>
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -811,6 +909,127 @@ function MetricsStep({ onDone }: { onDone: () => void }) {
           I&apos;ll pull these later
         </button>
       </div>
+    </div>
+  );
+}
+
+function CustomerStep({ onDone }: { onDone: () => void }) {
+  const [industry, setIndustry] = useState("");
+  const [companySize, setCompanySize] = useState("");
+  const [geography, setGeography] = useState("");
+  const [buyerTitle, setBuyerTitle] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  const complete = industry.trim() !== "" && companySize !== "" && buyerTitle !== "";
+
+  function confirm() {
+    if (!complete) return;
+    startTransition(async () => {
+      await saveCustomerProfile({ industry: industry.trim(), companySize, geography: geography.trim(), buyerTitle });
+      onDone();
+    });
+  }
+
+  return (
+    <div>
+      <span className={eyebrowClass}>Onboarding · Customer</span>
+      <h1 className={headlineClass}>Who you sell to</h1>
+      <p className="mt-3 text-[15px] leading-relaxed text-muted">
+        Your primary customer, not every edge case you&apos;ve ever closed. Enough for the platform to sound informed
+        from your very first conversation — the deeper breakdown comes later.
+      </p>
+
+      <div className="mt-7 flex flex-col gap-3.5 rounded-2xl border border-[var(--sails-border)] bg-[var(--background)] p-5 shadow-[var(--shadow-soft)]">
+        <label className="block">
+          <span className="text-xs font-medium text-muted">Industry</span>
+          <input
+            value={industry}
+            onChange={(e) => setIndustry(e.target.value)}
+            placeholder="e.g. B2B fintech"
+            className={fieldClass}
+          />
+        </label>
+        <SelectField
+          label="Company size they typically buy from you"
+          value={companySize}
+          onChange={setCompanySize}
+          options={COMPANY_SIZE_OPTIONS}
+        />
+        <label className="block">
+          <span className="text-xs font-medium text-muted">Geography (optional)</span>
+          <input
+            value={geography}
+            onChange={(e) => setGeography(e.target.value)}
+            placeholder="e.g. North America"
+            className={fieldClass}
+          />
+        </label>
+        <SelectField
+          label="Title of your typical economic buyer (who signs off)"
+          value={buyerTitle}
+          onChange={setBuyerTitle}
+          options={BUYER_TITLE_OPTIONS}
+        />
+      </div>
+
+      <button type="button" onClick={confirm} disabled={isPending || !complete} className={primaryButtonClass}>
+        Continue <ArrowRightIcon className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function DealShapeStep({ onDone }: { onDone: () => void }) {
+  const [acv, setAcv] = useState("");
+  const [cycleLengthDays, setCycleLengthDays] = useState("");
+  const [stakeholderCount, setStakeholderCount] = useState("");
+  const [procurementInvolved, setProcurementInvolved] = useState<"yes" | "no" | "">("");
+  const [isPending, startTransition] = useTransition();
+
+  const complete = acv !== "" && cycleLengthDays !== "" && stakeholderCount !== "" && procurementInvolved !== "";
+
+  function confirm() {
+    if (!complete) return;
+    startTransition(async () => {
+      await saveDealShape({ acv, cycleLengthDays, stakeholderCount, procurementInvolved: procurementInvolved as "yes" | "no" });
+      onDone();
+    });
+  }
+
+  return (
+    <div>
+      <span className={eyebrowClass}>Onboarding · Customer</span>
+      <h1 className={headlineClass}>Your deal shape</h1>
+      <p className="mt-3 text-[15px] leading-relaxed text-muted">
+        Typical, not best case or worst case. This is what routes you to the right track and tells the platform how
+        complex your deals really are.
+      </p>
+
+      <div className="mt-7 flex flex-col gap-3.5 rounded-2xl border border-[var(--sails-border)] bg-[var(--background)] p-5 shadow-[var(--shadow-soft)]">
+        <SelectField label="Typical annual contract value (ACV)" value={acv} onChange={setAcv} options={ACV_OPTIONS} />
+        <SelectField
+          label="Typical sales cycle length"
+          value={cycleLengthDays}
+          onChange={setCycleLengthDays}
+          options={CYCLE_LENGTH_OPTIONS}
+        />
+        <SelectField
+          label="People typically involved in a buying decision"
+          value={stakeholderCount}
+          onChange={setStakeholderCount}
+          options={STAKEHOLDER_COUNT_OPTIONS}
+        />
+        <SelectField
+          label="Does procurement, legal, or security usually get involved?"
+          value={procurementInvolved}
+          onChange={(v) => setProcurementInvolved(v as "yes" | "no")}
+          options={PROCUREMENT_OPTIONS}
+        />
+      </div>
+
+      <button type="button" onClick={confirm} disabled={isPending || !complete} className={primaryButtonClass}>
+        Continue <ArrowRightIcon className="h-3.5 w-3.5" />
+      </button>
     </div>
   );
 }

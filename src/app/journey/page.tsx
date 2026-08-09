@@ -18,7 +18,6 @@ import {
 import type { ComponentType, SVGProps } from "react";
 
 const MODULE_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
-  "orientation-diagnostic": CompassIcon,
   "icp-tiering": TargetIcon,
   "messaging-foundation": SparkleIcon,
   "personas-buyer-roles": UsersIcon,
@@ -51,6 +50,8 @@ export default async function JourneyPage() {
       "respondent.sales_experience",
       "team.current_roles",
       "metrics.lead_sources",
+      "icp.segments",
+      "company.buyer_title",
     ]),
   ]);
 
@@ -63,6 +64,7 @@ export default async function JourneyPage() {
   // Existing orgs that completed the old all-in-one onboarding-diagnostic
   // already have all of these set, so the gate never re-triggers for them.
   const hasExistingMotion = context["company.has_existing_motion"];
+  const icpSegments = Array.isArray(context["icp.segments"]) ? context["icp.segments"] : [];
   const onboardingComplete =
     typeof context["company.name"] === "string" &&
     context["company.name"] !== "" &&
@@ -73,7 +75,11 @@ export default async function JourneyPage() {
     (hasExistingMotion === "yes" || hasExistingMotion === "no") &&
     (hasExistingMotion === "no" || "team.current_roles" in context) &&
     (hasExistingMotion === "no" ||
-      (Array.isArray(context["metrics.lead_sources"]) && context["metrics.lead_sources"].length > 0));
+      (Array.isArray(context["metrics.lead_sources"]) && context["metrics.lead_sources"].length > 0)) &&
+    icpSegments.length > 0 &&
+    typeof context["company.buyer_title"] === "string" &&
+    typeof context["company.recommended_tier"] === "string" &&
+    context["company.recommended_tier"] !== "";
 
   if (!onboardingComplete) {
     redirect("/onboarding");
@@ -107,8 +113,15 @@ export default async function JourneyPage() {
     },
   };
 
-  const orientationModule = modules.find((m) => m.data.slug === "orientation-diagnostic");
-  const diagnosticDone = completedSlugs.has("onboarding-diagnostic");
+  // company.recommended_tier is now computed inside the bespoke onboarding
+  // flow itself (Customer bucket's deal-shape step, src/app/onboarding/
+  // actions.ts's saveDealShape) rather than by completing a Journey
+  // exercise. onboarding-diagnostic.yml is retired but kept on disk — its
+  // exercise_slug is still referenced by exercise_sessions rows for orgs
+  // that completed it under the old system, and deleting the content file
+  // would make content:sync's stale-row pruning hard-fail on that foreign
+  // key. It's simply never shown here anymore. See that file's header
+  // comment.
   const tier = context["company.recommended_tier"] as Tier | undefined;
 
   // opp_rate is a computed metric from real meeting history — asking a
@@ -130,13 +143,12 @@ export default async function JourneyPage() {
     : [];
 
   const visibleModules = [
-    ...(orientationModule ? [orientationModule.data] : []),
-    ...(diagnosticDone && tier && tier !== "enterprise"
+    ...(tier && tier !== "enterprise"
       ? modules
           .filter((m) => m.data.slug !== "orientation-diagnostic" && m.data.tracks.some((t) => applicable.includes(t)))
           .map((m) => m.data)
       : []),
-    ...(diagnosticDone && tier === "enterprise"
+    ...(tier === "enterprise"
       ? modules
           .filter((m) => m.data.slug !== "orientation-diagnostic" && m.data.tracks.includes("mid-market"))
           .map((m) => m.data)
@@ -271,24 +283,15 @@ export default async function JourneyPage() {
         </div>
       )}
 
-      {orientationModule && renderModule(orientationModule.data, 0)}
-
-      {!diagnosticDone && (
+      {!tier && (
         <p className="mt-4 flex items-center gap-2 text-sm text-muted">
           <CircleIcon className="h-4 w-4 shrink-0" />
-          Complete your diagnostic above to unlock the rest of your personalized journey.
+          We don&apos;t have a track recommendation for you yet — this is normally computed
+          automatically during onboarding.
         </p>
       )}
 
-      {diagnosticDone && !tier && (
-        <p className="mt-4 flex items-center gap-2 text-sm text-muted">
-          <CircleIcon className="h-4 w-4 shrink-0" />
-          We don&apos;t have a track recommendation for you yet — redo the diagnostic above to
-          get one.
-        </p>
-      )}
-
-      {diagnosticDone && tier === "enterprise" && (
+      {tier === "enterprise" && (
         <div className="mt-8 rounded-2xl border border-dashed border-[var(--sails-border)] p-5">
           <div className="flex items-center gap-2">
             <TargetIcon className="h-5 w-5 text-[var(--sails-blue)]" />
@@ -300,16 +303,11 @@ export default async function JourneyPage() {
             meantime, the Mid-Market exercises below are the closest fit — expect to adapt them
             upward for your buying committee and procurement process.
           </p>
-          {visibleModules
-            .filter((m) => m.slug !== "orientation-diagnostic")
-            .map((m, i) => renderModule(m, i + 1))}
+          {visibleModules.map((m, i) => renderModule(m, i))}
         </div>
       )}
 
-      {diagnosticDone &&
-        tier &&
-        tier !== "enterprise" &&
-        visibleModules.filter((m) => m.slug !== "orientation-diagnostic").map((m, i) => renderModule(m, i + 1))}
+      {tier && tier !== "enterprise" && visibleModules.map((m, i) => renderModule(m, i))}
     </main>
   );
 }
