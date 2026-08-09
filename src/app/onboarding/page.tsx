@@ -26,6 +26,9 @@ export default async function OnboardingPage() {
     "company.has_existing_motion",
     "team.current_roles",
     "metrics.lead_sources",
+    "icp.segments",
+    "company.buyer_title",
+    "company.recommended_tier",
   ]);
 
   // Forced order (Business, then You, then Sales Motion) — respondent.role
@@ -51,8 +54,30 @@ export default async function OnboardingPage() {
   // prior defer) is an acceptable edge case, not a real resume bug — it
   // just means asking again, not losing anything.
   const metricsDone = hasExistingMotion === "no" || leadSources.length > 0;
+  // Customer bucket applies to everyone regardless of has_existing_motion —
+  // a zero-to-one founder still has a target market and expected deal
+  // shape, unlike Team/Metrics which need real headcount/funnel history to
+  // mean anything.
+  const icpSegments = Array.isArray(context["icp.segments"]) ? context["icp.segments"] : [];
+  const customerDone = icpSegments.length > 0 && typeof context["company.buyer_title"] === "string";
+  // recommended_tier only gets written once saveDealShape's recommendTrack
+  // call runs — its presence is the single completion signal for the whole
+  // deal-shape screen, same idea as onboarding-diagnostic's old completion
+  // trigger, just moved here (see that file's header comment).
+  const dealShapeDone =
+    typeof context["company.recommended_tier"] === "string" && context["company.recommended_tier"] !== "";
 
-  if (businessDone && roleDone && experienceDone && motionDone && teamDone && metricsDone) redirect("/journey");
+  if (
+    businessDone &&
+    roleDone &&
+    experienceDone &&
+    motionDone &&
+    teamDone &&
+    metricsDone &&
+    customerDone &&
+    dealShapeDone
+  )
+    redirect("/journey");
 
   const initialStep = !businessDone
     ? "business"
@@ -64,7 +89,11 @@ export default async function OnboardingPage() {
           ? "motion"
           : !teamDone
             ? "team"
-            : "metrics";
+            : !metricsDone
+              ? "metrics"
+              : !customerDone
+                ? "customer"
+                : "deal-shape";
 
   return (
     <OnboardingFlow
@@ -75,6 +104,8 @@ export default async function OnboardingPage() {
       motionDone={motionDone}
       teamDone={teamDone}
       metricsDone={metricsDone}
+      customerDone={customerDone}
+      dealShapeDone={dealShapeDone}
       hasExistingMotion={hasExistingMotion === "yes" || hasExistingMotion === "no" ? hasExistingMotion : null}
       initialBusiness={{
         domain: (context["company.domain"] as string) ?? "",
