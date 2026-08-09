@@ -8,13 +8,15 @@ import {
   saveRole,
   saveExperience,
   saveHasExistingMotion,
+  saveTeamRoles,
   saveLeadSources,
   deferLeadSources,
 } from "./actions";
 import { computeSourceMetrics, computeBlended, LEAD_SOURCES, type SourceInput } from "@/lib/onboarding/metrics";
+import { TEAM_ROLES } from "@/lib/onboarding/team";
 import { CheckCircleIcon, CircleIcon, SparkleIcon, ArrowRightIcon, PlusIcon, XIcon, InfoIcon } from "@/components/icons";
 
-type Step = "business" | "role" | "experience" | "motion" | "metrics";
+type Step = "business" | "role" | "experience" | "motion" | "team" | "metrics";
 
 type BusinessFields = {
   domain: string;
@@ -40,6 +42,7 @@ const ALL_STEPS: { id: Step; label: string; bucket: string }[] = [
   { id: "role", label: "Your role", bucket: "You" },
   { id: "experience", label: "Your experience", bucket: "You" },
   { id: "motion", label: "Existing motion?", bucket: "Sales motion" },
+  { id: "team", label: "Your team", bucket: "Sales motion" },
   { id: "metrics", label: "Metrics by source", bucket: "Sales motion" },
 ];
 
@@ -60,6 +63,7 @@ export function OnboardingFlow({
   roleDone,
   experienceDone,
   motionDone,
+  teamDone,
   metricsDone,
   hasExistingMotion,
   initialBusiness,
@@ -69,6 +73,7 @@ export function OnboardingFlow({
   roleDone: boolean;
   experienceDone: boolean;
   motionDone: boolean;
+  teamDone: boolean;
   metricsDone: boolean;
   hasExistingMotion: "yes" | "no" | null;
   initialBusiness: BusinessFields;
@@ -79,6 +84,7 @@ export function OnboardingFlow({
     role: roleDone,
     experience: experienceDone,
     motion: motionDone,
+    team: teamDone,
     metrics: metricsDone,
   });
   const [motionAnswer, setMotionAnswer] = useState<"yes" | "no" | null>(hasExistingMotion);
@@ -95,13 +101,13 @@ export function OnboardingFlow({
     if (answer === "no") {
       finish();
     } else {
-      setStep("metrics");
+      setStep("team");
     }
   }
 
-  // "No" removes Metrics from the visible flow entirely — a target the
-  // user invented can't diagnose itself, so there's nothing to show.
-  const visibleSteps = ALL_STEPS.filter((s) => s.id !== "metrics" || motionAnswer !== "no");
+  // "No" removes Team and Metrics from the visible flow entirely — a
+  // zero-to-one founder has no roles or funnel to report yet.
+  const visibleSteps = ALL_STEPS.filter((s) => (s.id !== "team" && s.id !== "metrics") || motionAnswer !== "no");
   const stepIndex = visibleSteps.findIndex((s) => s.id === step);
 
   return (
@@ -187,6 +193,14 @@ export function OnboardingFlow({
             />
           )}
           {step === "motion" && <MotionStep onDone={advanceFromMotion} />}
+          {step === "team" && (
+            <TeamStep
+              onDone={() => {
+                setDone((prev) => ({ ...prev, team: true }));
+                setStep("metrics");
+              }}
+            />
+          )}
           {step === "metrics" && (
             <MetricsStep
               onDone={() => {
@@ -459,6 +473,91 @@ function MotionStep({ onDone }: { onDone: (answer: "yes" | "no") => void }) {
   );
 }
 
+function TeamStep({ onDone }: { onDone: () => void }) {
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [customRoles, setCustomRoles] = useState<{ value: string; label: string }[]>([]);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  const allRoles = [...TEAM_ROLES, ...customRoles];
+
+  function updateCount(role: string, value: string) {
+    const n = Number(value.replace(/[^0-9]/g, "")) || 0;
+    setCounts((prev) => ({ ...prev, [role]: n }));
+  }
+
+  function addCustomRole() {
+    const label = newRoleName.trim();
+    if (!label) return;
+    const value = slugify(label);
+    if (!value || allRoles.some((r) => r.value === value)) return;
+    setCustomRoles((prev) => [...prev, { value, label }]);
+    setNewRoleName("");
+  }
+
+  function confirm() {
+    const roles = allRoles.filter((r) => (counts[r.value] ?? 0) > 0).map((r) => ({ role: r.value, count: counts[r.value] }));
+    startTransition(async () => {
+      await saveTeamRoles(roles);
+      onDone();
+    });
+  }
+
+  return (
+    <div>
+      <span className={eyebrowClass}>Onboarding · Sales motion</span>
+      <h1 className={headlineClass}>Your team today</h1>
+      <p className="mt-3 text-[15px] leading-relaxed text-muted">
+        A quick headcount by role. Helps us calibrate the difference between coaching you and coaching a team —
+        leave anything you don&apos;t have at zero.
+      </p>
+
+      <div className="mt-7 flex flex-col gap-2.5 rounded-2xl border border-[var(--sails-border)] bg-[var(--background)] p-5 shadow-[var(--shadow-soft)]">
+        {allRoles.map((r) => (
+          <div key={r.value} className="flex items-center justify-between gap-3">
+            <span className="text-sm text-[var(--foreground)]">{r.label}</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={counts[r.value] ? String(counts[r.value]) : ""}
+              onChange={(e) => updateCount(r.value, e.target.value)}
+              placeholder="0"
+              className="w-20 rounded-lg border border-[var(--sails-border)] bg-[var(--background)] px-3 py-1.5 text-right text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--sails-blue)]/40 focus:border-[var(--sails-blue)]"
+            />
+          </div>
+        ))}
+
+        <div className="mt-1 flex items-center gap-2 border-t border-[var(--sails-border)] pt-3.5">
+          <input
+            value={newRoleName}
+            onChange={(e) => setNewRoleName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addCustomRole();
+              }
+            }}
+            placeholder="Not on the list? Name another role"
+            className="flex-1 bg-transparent text-sm text-[var(--foreground)] placeholder:text-faint focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={addCustomRole}
+            disabled={!newRoleName.trim()}
+            className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium text-[var(--sails-blue)] transition-colors duration-150 hover:bg-[var(--sails-blue-light)] disabled:opacity-40"
+          >
+            + Add role
+          </button>
+        </div>
+      </div>
+
+      <button type="button" onClick={confirm} disabled={isPending} className={primaryButtonClass}>
+        Continue <ArrowRightIcon className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
 const EMPTY_SOURCE: Omit<SourceInput, "source"> = {
   leads: 0,
   sets: 0,
@@ -529,7 +628,7 @@ function formatMoney(n: number) {
   return `$${Math.round(n).toLocaleString()}`;
 }
 
-function slugifySourceName(name: string): string {
+function slugify(name: string): string {
   return name
     .trim()
     .toLowerCase()
@@ -559,7 +658,7 @@ function MetricsStep({ onDone }: { onDone: () => void }) {
   function addCustomSource() {
     const label = newSourceName.trim();
     if (!label) return;
-    const value = slugifySourceName(label);
+    const value = slugify(label);
     if (!value || allSources.some((s) => s.value === value)) return;
     setCustomSources((prev) => [...prev, { value, label }]);
     setEnabled((prev) => ({ ...prev, [value]: true }));

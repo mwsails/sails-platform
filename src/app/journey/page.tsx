@@ -49,6 +49,7 @@ export default async function JourneyPage() {
       "metrics.diagnosis",
       "respondent.role",
       "respondent.sales_experience",
+      "team.current_roles",
       "metrics.lead_sources",
     ]),
   ]);
@@ -70,6 +71,7 @@ export default async function JourneyPage() {
     typeof context["respondent.sales_experience"] === "string" &&
     context["respondent.sales_experience"] !== "" &&
     (hasExistingMotion === "yes" || hasExistingMotion === "no") &&
+    (hasExistingMotion === "no" || "team.current_roles" in context) &&
     (hasExistingMotion === "no" ||
       (Array.isArray(context["metrics.lead_sources"]) && context["metrics.lead_sources"].length > 0));
 

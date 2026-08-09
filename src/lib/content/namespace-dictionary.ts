@@ -434,6 +434,18 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
     interview_scorecard: arrayOf({ competency: scalar, question: scalar }),
     // Drives the "sales-leadership" cross-cutting track tag (recommend.ts).
     has_sales_manager: scalar,
+    // Headcount by role, from the bespoke Sales Motion onboarding screen
+    // (src/app/onboarding, not an exercise) — only asked when
+    // company.has_existing_motion is "yes", same gate as metrics.lead_sources,
+    // since a zero-to-one founder has no roles to report yet. `role` is one
+    // of TEAM_ROLES (src/lib/onboarding/team.ts) or a slugified custom
+    // role, same "fixed list is a UI convenience, not a validated enum"
+    // pattern as metrics.lead_sources[].source. Separate from the existing
+    // has_sales_manager yes/no signal above (that drives track routing,
+    // this is the fuller breakdown for coaching depth) — deliberately not
+    // derived from each other, so recommend.ts's existing routing logic
+    // stays untouched.
+    current_roles: arrayOf({ role: scalar, count: scalar }),
   },
 };
 
