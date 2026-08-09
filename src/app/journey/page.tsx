@@ -47,15 +47,33 @@ export default async function JourneyPage() {
       "company.has_existing_motion",
       "team.has_sales_manager",
       "metrics.diagnosis",
+      "respondent.role",
+      "respondent.sales_experience",
+      "metrics.lead_sources",
     ]),
   ]);
 
   // Onboarding is a corridor — you can't reach the Journey/workspace without
-  // going through Business first (company.name is the one field only the
-  // bespoke onboarding flow writes). Existing orgs that completed the old
-  // all-in-one onboarding-diagnostic already have this set, so the gate
-  // never re-triggers for them.
-  if (typeof context["company.name"] !== "string" || context["company.name"] === "") {
+  // going through every bespoke onboarding bucket first. Mirrors the same
+  // completion check onboarding/page.tsx uses to decide which step to
+  // resume on — this gate and that one drifting out of sync is exactly how
+  // a partially-onboarded org (Business done, nothing else) could reach
+  // Journey directly once a later bucket shipped after they'd started.
+  // Existing orgs that completed the old all-in-one onboarding-diagnostic
+  // already have all of these set, so the gate never re-triggers for them.
+  const hasExistingMotion = context["company.has_existing_motion"];
+  const onboardingComplete =
+    typeof context["company.name"] === "string" &&
+    context["company.name"] !== "" &&
+    typeof context["respondent.role"] === "string" &&
+    context["respondent.role"] !== "" &&
+    typeof context["respondent.sales_experience"] === "string" &&
+    context["respondent.sales_experience"] !== "" &&
+    (hasExistingMotion === "yes" || hasExistingMotion === "no") &&
+    (hasExistingMotion === "no" ||
+      (Array.isArray(context["metrics.lead_sources"]) && context["metrics.lead_sources"].length > 0));
+
+  if (!onboardingComplete) {
     redirect("/onboarding");
   }
   const completedSlugs = new Set((sessions ?? []).map((s) => s.exercise_slug));
