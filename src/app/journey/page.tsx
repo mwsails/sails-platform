@@ -41,6 +41,7 @@ export default async function JourneyPage() {
       .eq("org_id", user.orgId)
       .eq("status", "completed"),
     readContext(supabase, user.orgId, user.id, [
+      "company.name",
       "company.recommended_tier",
       "company.motion",
       "company.has_existing_motion",
@@ -48,6 +49,15 @@ export default async function JourneyPage() {
       "metrics.diagnosis",
     ]),
   ]);
+
+  // Onboarding is a corridor — you can't reach the Journey/workspace without
+  // going through Business first (company.name is the one field only the
+  // bespoke onboarding flow writes). Existing orgs that completed the old
+  // all-in-one onboarding-diagnostic already have this set, so the gate
+  // never re-triggers for them.
+  if (typeof context["company.name"] !== "string" || context["company.name"] === "") {
+    redirect("/onboarding");
+  }
   const completedSlugs = new Set((sessions ?? []).map((s) => s.exercise_slug));
 
   // metrics.diagnosis is append-only (Exercise Schema §5) — the most recent

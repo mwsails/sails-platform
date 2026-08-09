@@ -1,24 +1,26 @@
-# The first exercise every org completes. Seeds `company.*`/`team.*`, which
-# doubles as the routing-signal set the plan (§2) calls for capturing at
-# diagnostic time. Track *recommendation* itself lives in app code
-# (src/lib/tracks/recommend.ts), not this file — it's a deterministic score
-# across several fields, not a single-field mapping the writes/steps model
-# is built to express. That function reads these same context fields after
-# this exercise's writes land, and writes company.recommended_tier +
+# The second stop in onboarding, right after the bespoke Business/You
+# screens (src/app/onboarding, not an exercise — see that route for why).
+# Seeds `company.*`/`team.*` tier-routing signals the plan (§2) calls for
+# capturing at diagnostic time. Track *recommendation* itself lives in app
+# code (src/lib/tracks/recommend.ts), not this file — it's a deterministic
+# score across several fields, not a single-field mapping the writes/steps
+# model is built to express. That function reads these same context fields
+# after this exercise's writes land, and writes company.recommended_tier +
 # team.has_sales_manager-derived tags back separately.
 #
-# Also seeds `respondent.*` (who's answering, not what the business is) and
-# `company.has_existing_motion` (explicit, not inferred from team_size — a
-# solo founder can have real closed deals). has_existing_motion is what the
-# opp_rate Diagnostic Intake Layer gates on (see opp-rate-check.yml), so a
-# zero-to-one founder never gets asked for a conversion rate on zero
-# meetings.
+# Also seeds `company.has_existing_motion` (explicit, not inferred from
+# team_size — a solo founder can have real closed deals). has_existing_motion
+# is what the opp_rate Diagnostic Intake Layer gates on (see
+# opp-rate-check.yml), so a zero-to-one founder never gets asked for a
+# conversion rate on zero meetings.
 #
-# company_name/product_name/category/pricing_model are seeded via
-# url_scrape (company_scrape step) instead of blank text fields — "never
-# show a blank field" per the plan's §0.3 exercise pattern. A skipped or
-# failed scrape leaves the same editable form empty, degrading to exactly
-# the old manual-entry behavior with no special-casing needed.
+# Used to also seed respondent.role/sales_experience and company.name/
+# product_name/category/pricing_model via a company_scrape url_scrape step —
+# both moved to the bespoke Business and Your role/experience onboarding
+# screens (forced order: Business, then You, then this). This exercise
+# doesn't read those fields itself so `reads`/`requires` stay empty, but the
+# app-level onboarding gate (src/app/onboarding) is what actually enforces
+# that both ran first, not a content-layer `requires`.
 slug: onboarding-diagnostic
 schema_version: 3
 title: "Your Sales Diagnostic"
@@ -31,24 +33,6 @@ reads: []
 requires: []
 
 writes:
-  - from: answers.respondent_role
-    to: respondent.role
-    mode: replace
-  - from: answers.respondent_sales_experience
-    to: respondent.sales_experience
-    mode: replace
-  - from: answers.company_scrape.company_name
-    to: company.name
-    mode: replace
-  - from: answers.company_scrape.product_name
-    to: company.product_name
-    mode: replace
-  - from: answers.company_scrape.category
-    to: company.category
-    mode: replace
-  - from: answers.company_scrape.pricing_model
-    to: company.pricing_model
-    mode: replace
   - from: answers.motion
     to: company.motion
     mode: replace
@@ -86,36 +70,10 @@ writes:
 steps:
   - type: teach
     body: |
-      A few questions about you and how you sell today. Nothing here is
-      graded — it just seeds your profile and routes you to the right
-      track, so every exercise after this one already knows your business
-      instead of asking you to repeat yourself.
-
-  - id: respondent_role
-    type: select
-    label: "What's your role?"
-    options:
-      - { value: founder, label: "Founder" }
-      - { value: sales_leader, label: "Sales leader / manager" }
-      - { value: rep, label: "Individual rep" }
-      - { value: other, label: "Other" }
-
-  - id: respondent_sales_experience
-    type: select
-    label: "How much formal sales experience do you have?"
-    options:
-      - { value: none, label: "None — this is new to me" }
-      - { value: some, label: "Some — I've sold before, informally or early-career" }
-      - { value: extensive, label: "Extensive — years of quota-carrying or sales-leadership experience" }
-
-  - id: company_scrape
-    type: url_scrape
-    label: "Your company website"
-    fields:
-      - { name: company_name, label: "Company name", type: text }
-      - { name: product_name, label: "What you sell, in one sentence", type: textarea }
-      - { name: category, label: "Category (e.g. \"B2B sales consulting\", \"POS software\")", type: text }
-      - { name: pricing_model, label: "Pricing model (subscription, usage-based, one-time, or hybrid)", type: text }
+      A few more questions about how you sell today. Nothing here is
+      graded — it seeds the rest of your profile and routes you to the
+      right track, so every exercise after this one already knows your
+      business instead of asking you to repeat yourself.
 
   - id: motion
     type: select

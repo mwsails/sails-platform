@@ -14,6 +14,11 @@ const NAV_ITEMS = [
 export function NavBar() {
   const pathname = usePathname();
 
+  // Onboarding is a corridor, not the product — no nav during it, so there's
+  // nothing to navigate away to before Foundation exists. It returns once
+  // onboarding hands off to /journey.
+  if (pathname?.startsWith("/onboarding")) return null;
+
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--sails-border)] bg-[var(--background)]/80 backdrop-blur-md">
       <nav className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-3.5 sm:px-6">
