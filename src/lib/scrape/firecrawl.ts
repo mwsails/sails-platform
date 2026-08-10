@@ -136,17 +136,32 @@ export function extractBrandKit(html: string, metadata: Record<string, unknown>)
   };
 }
 
+const TARGET_INDUSTRY_FIELD = "target_industry";
+const TARGET_INDUSTRY_DESCRIPTION =
+  "The primary industry or type of customer this company sells to, if the page clearly states or implies it " +
+  "(e.g. \"B2B fintech companies\", \"healthcare providers\", \"e-commerce brands\"). Leave as an empty string if " +
+  "the page doesn't make this clear — do not guess.";
+
 /**
  * Business bucket's single scrape — one Firecrawl call requesting both the
  * `json` (LLM text-field extraction, same as scrapeAndExtract) and `html`
  * (for extractBrandKit) formats together, confirmed live that Firecrawl
  * returns both from one request rather than needing two round trips (and
  * two credits) for what the Business screen shows as a single review card.
+ *
+ * Also proposes a target-industry guess (who the company sells to, not
+ * what it is) via the same json extraction — but deliberately kept out of
+ * `business`/`opts.fields`: it isn't a field the Business screen shows or
+ * saves, it's carried forward by OnboardingFlow to pre-fill Who You Sell
+ * To when the rep reaches it later. Not required in the schema, unlike
+ * every other requested field — most pages don't say this explicitly, and
+ * a forced guess here would be exactly the "propose a fake answer" failure
+ * mode extractBrandKit's fonts avoid.
  */
 export async function scrapeBusinessProfile(opts: {
   url: string;
   fields: { name: string; label: string }[];
-}): Promise<{ business: Record<string, string>; brand: BrandKit }> {
+}): Promise<{ business: Record<string, string>; brand: BrandKit; targetIndustry: string }> {
   const apiKey = process.env.FIRECRAWL_API_KEY;
   if (!apiKey) {
     throw new Error("Scraping isn't configured yet — ask an admin to set FIRECRAWL_API_KEY.");
@@ -154,7 +169,10 @@ export async function scrapeBusinessProfile(opts: {
 
   const schema = {
     type: "object",
-    properties: Object.fromEntries(opts.fields.map((f) => [f.name, { type: "string", description: f.label }])),
+    properties: {
+      ...Object.fromEntries(opts.fields.map((f) => [f.name, { type: "string", description: f.label }])),
+      [TARGET_INDUSTRY_FIELD]: { type: "string", description: TARGET_INDUSTRY_DESCRIPTION },
+    },
     required: opts.fields.map((f) => f.name),
   };
 
@@ -191,8 +209,9 @@ export async function scrapeBusinessProfile(opts: {
     const v = raw[f.name];
     business[f.name] = typeof v === "string" ? v : "";
   }
+  const targetIndustry = typeof raw[TARGET_INDUSTRY_FIELD] === "string" ? (raw[TARGET_INDUSTRY_FIELD] as string) : "";
 
   const brand = extractBrandKit(body.data.html ?? "", body.data.metadata ?? {});
 
-  return { business, brand };
+  return { business, brand, targetIndustry };
 }

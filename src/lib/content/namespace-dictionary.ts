@@ -80,6 +80,12 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
   // ahead of Foundation, since it colors every screen after.
   respondent: {
     role: scalar, // "founder" | "sales_leader" | "rep" | "other"
+    // Only asked (and only meaningful) when role is "other" — the fixed
+    // list doesn't cover every real title (ops, RevOps, a co-founder doing
+    // sales part-time), and "other" alone throws that context away. Blank
+    // for the other three role values, same "not everything is always
+    // filled" pattern as icp.segments[].geography.
+    title: scalar,
     sales_experience: scalar, // "none" | "some" | "extensive"
   },
 

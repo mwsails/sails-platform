@@ -179,6 +179,12 @@ export function OnboardingFlow({
   // means deferred — Deal Shape is still needed to collect the routing
   // fields the funnel screen didn't get to derive.
   const [metricsHasData, setMetricsHasData] = useState<boolean | null>(hasFunnelData ? true : null);
+  // Proposed by the Business screen's scrape, not persisted anywhere until
+  // Customer's own confirm saves it — same "propose in-session, only
+  // write on review" contract as everything else, just carried forward a
+  // step instead of shown immediately. Lost on a hard reload between
+  // Business and Customer; an ephemeral convenience, not a promise.
+  const [scrapedIndustry, setScrapedIndustry] = useState("");
   const router = useRouter();
 
   function finish() {
@@ -289,6 +295,7 @@ export function OnboardingFlow({
             <BusinessStep
               initial={initialBusiness}
               initialBrand={initialBrand}
+              onIndustryGuess={setScrapedIndustry}
               onDone={() => {
                 setDone((prev) => ({ ...prev, business: true }));
                 setStep("role");
@@ -320,7 +327,9 @@ export function OnboardingFlow({
               }}
             />
           )}
-          {step === "customer" && <CustomerStep onDone={advanceFromCustomer} />}
+          {step === "customer" && (
+            <CustomerStep initialIndustry={scrapedIndustry} onDone={advanceFromCustomer} />
+          )}
           {step === "metrics" && <MetricsStep onDone={advanceFromMetrics} />}
           {step === "deal-shape" && (
             <DealShapeStep
@@ -413,10 +422,12 @@ function BrandKitFields({ brand, updateBrand }: { brand: BrandFields; updateBran
 function BusinessStep({
   initial,
   initialBrand,
+  onIndustryGuess,
   onDone,
 }: {
   initial: BusinessFields;
   initialBrand: BrandFields;
+  onIndustryGuess: (industry: string) => void;
   onDone: () => void;
 }) {
   const [url, setUrl] = useState("");
@@ -437,6 +448,7 @@ function BusinessStep({
       }
       setFields(result.content as BusinessFields);
       setBrand(result.brand);
+      if (result.targetIndustry) onIndustryGuess(result.targetIndustry);
     });
   }
 
@@ -610,12 +622,14 @@ function SelectField({
 
 function RoleStep({ onDone }: { onDone: () => void }) {
   const [role, setRole] = useState("");
+  const [title, setTitle] = useState("");
   const [isPending, startTransition] = useTransition();
+  const complete = role !== "" && (role !== "other" || title.trim() !== "");
 
   function confirm() {
-    if (!role) return;
+    if (!complete) return;
     startTransition(async () => {
-      await saveRole(role);
+      await saveRole(role, title);
       onDone();
     });
   }
@@ -637,7 +651,18 @@ function RoleStep({ onDone }: { onDone: () => void }) {
           { value: "other", label: "Other" },
         ]}
       />
-      <button type="button" onClick={confirm} disabled={isPending || !role} className={primaryButtonClass}>
+      {role === "other" && (
+        <label className="mt-3 block">
+          <span className="text-xs font-medium text-muted">Your title</span>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Head of Revenue Operations"
+            className={fieldClass}
+          />
+        </label>
+      )}
+      <button type="button" onClick={confirm} disabled={isPending || !complete} className={primaryButtonClass}>
         Continue <ArrowRightIcon className="h-3.5 w-3.5" />
       </button>
     </div>
@@ -842,7 +867,7 @@ const COUNT_FIELDS: { name: keyof typeof EMPTY_SOURCE; label: string; hint: stri
   },
   {
     name: "cycle_length_days",
-    label: "Cycle length (days)",
+    label: "Cycle (days)",
     hint: "Average number of days from first meeting to closed won.",
   },
 ];
@@ -997,12 +1022,36 @@ function MetricsStep({ onDone }: { onDone: (hasData: boolean) => void }) {
         <div className="mt-6 rounded-2xl border border-[var(--sails-blue)]/30 bg-[var(--sails-blue-light)] p-4">
           <p className={pillClass + " bg-white/60"}>All sources</p>
           <div className="mt-3 grid grid-cols-3 gap-x-4 gap-y-2 text-sm sm:grid-cols-6">
-            <Stat label="Set rate" value={formatPct(blended.setRate)} />
-            <Stat label="Keep rate" value={formatPct(blended.keepRate)} />
-            <Stat label="Opp rate" value={formatPct(blended.oppRate)} />
-            <Stat label="Close rate" value={formatPct(blended.closeRate)} />
-            <Stat label="ARPA" value={formatMoney(blended.arpa)} />
-            <Stat label="Velocity/day" value={formatMoney(blended.velocity)} />
+            <Stat
+              label="Set rate"
+              value={formatPct(blended.setRate)}
+              hint="Meetings set divided by leads — how often a lead turns into a scheduled meeting."
+            />
+            <Stat
+              label="Keep rate"
+              value={formatPct(blended.keepRate)}
+              hint="Meetings held divided by meetings set — how many scheduled meetings actually happen."
+            />
+            <Stat
+              label="Opp rate"
+              value={formatPct(blended.oppRate)}
+              hint="Opportunities divided by meetings held — how often a meeting becomes a real, qualified deal."
+            />
+            <Stat
+              label="Close rate"
+              value={formatPct(blended.closeRate)}
+              hint="Closed won divided by opportunities — how often a qualified deal turns into a paying customer."
+            />
+            <Stat
+              label="ARPA"
+              value={formatMoney(blended.arpa)}
+              hint="Average revenue per account — total ARR divided by closed won deals."
+            />
+            <Stat
+              label="Velocity/day"
+              value={formatMoney(blended.velocity)}
+              hint="Opportunities times ARPA times close rate, divided by cycle length — how much revenue this funnel produces per day."
+            />
           </div>
           <FunnelInfographic blended={blended} />
         </div>
@@ -1129,8 +1178,8 @@ function MetricsStep({ onDone }: { onDone: (hasData: boolean) => void }) {
   );
 }
 
-function CustomerStep({ onDone }: { onDone: () => void }) {
-  const [industry, setIndustry] = useState("");
+function CustomerStep({ initialIndustry, onDone }: { initialIndustry: string; onDone: () => void }) {
+  const [industry, setIndustry] = useState(initialIndustry);
   const [companySize, setCompanySize] = useState("");
   const [geography, setGeography] = useState("");
   const [buyerTitle, setBuyerTitle] = useState("");
@@ -1250,10 +1299,25 @@ function DealShapeStep({ onDone }: { onDone: () => void }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div>
-      <div className="text-[10px] font-medium tracking-wide text-[var(--sails-blue)] uppercase">{label}</div>
+      <div className="flex items-center gap-1">
+        <span className="text-[10px] font-medium tracking-wide whitespace-nowrap text-[var(--sails-blue)] uppercase">
+          {label}
+        </span>
+        {hint && (
+          <span className="group/hint relative inline-flex shrink-0 items-center">
+            <InfoIcon className="h-2.5 w-2.5 shrink-0 text-[var(--sails-blue)]/60" />
+            <span
+              role="tooltip"
+              className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 w-44 -translate-x-1/2 rounded-lg border border-[var(--sails-border)] bg-[var(--background)] p-2.5 text-[11px] leading-snug normal-case text-[var(--foreground)] opacity-0 shadow-[var(--shadow-soft-hover)] transition-opacity duration-150 group-hover/hint:opacity-100"
+            >
+              {hint}
+            </span>
+          </span>
+        )}
+      </div>
       <div className="text-sm font-semibold text-[var(--foreground)]">{value}</div>
     </div>
   );
