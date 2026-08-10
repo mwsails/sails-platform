@@ -8,6 +8,7 @@ import { evaluateFormula } from "@/lib/formula";
 import { submitExercise, saveProgress } from "./actions";
 import { AiSuggestPanel } from "./AiSuggestPanel";
 import { AiGenerateField } from "./AiGenerateField";
+import { AiReviewPanel } from "./AiReviewPanel";
 import { UrlScrapeField } from "./UrlScrapeField";
 import { QuizField } from "./QuizField";
 import { LightbulbIcon, SparkleIcon, PlusIcon, XIcon, ArrowRightIcon } from "@/components/icons";
@@ -703,13 +704,12 @@ export function ExerciseForm({
             );
           case "ai_review":
             return (
-              <div
+              <AiReviewPanel
                 key={key}
-                className="flex items-center gap-2 rounded-xl border border-dashed border-[var(--sails-border)] p-4 text-sm text-muted"
-              >
-                <SparkleIcon className="h-4 w-4 shrink-0" />
-                AI-assisted step — available in Phase 2.
-              </div>
+                exerciseSlug={exercise.slug}
+                reviewsStepId={step.reviews_step}
+                currentAnswer={answers[step.reviews_step]}
+              />
             );
           case "output_preview":
             return (

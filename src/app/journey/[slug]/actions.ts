@@ -7,6 +7,7 @@ import { loadExercises } from "@/lib/content/loader";
 import { writeContext, readContext } from "@/lib/context/store";
 import { generateSuggestions } from "@/lib/ai/suggest";
 import { generateContent } from "@/lib/ai/generate";
+import { reviewContent } from "@/lib/ai/review";
 import { scrapeAndExtract } from "@/lib/scrape/firecrawl";
 
 /**
@@ -139,6 +140,44 @@ export async function generateForStep(
       fields: fields.map((f) => ({ name: f.name, label: f.label })),
     });
     return { content };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/**
+ * Powers the ai_review panel (AiReviewPanel). Same return-not-throw shape as
+ * suggestForStep/generateForStep. ai_review has no `id` of its own (Exercise
+ * Schema: it never writes, so nothing needs to name it as a writes target) —
+ * looked up by `reviews_step` instead, the id of the step it critiques,
+ * assumed unique per exercise. `currentAnswer` is the reviewed step's
+ * in-progress value from the client's own form state, not readContext: that
+ * step has not been submitted yet, so there is nothing in context to read.
+ */
+export async function reviewForStep(
+  exerciseSlug: string,
+  reviewsStepId: string,
+  currentAnswer: unknown
+): Promise<{ critique: string } | { error: string }> {
+  try {
+    const supabase = await createClient();
+    const user = await getCurrentUser(supabase);
+    if (!user) return { error: "not authenticated" };
+
+    const exercise = loadExercises().find((e) => e.data.slug === exerciseSlug)?.data;
+    if (!exercise) return { error: `unknown exercise "${exerciseSlug}"` };
+
+    const step = exercise.steps.find((s) => s.type === "ai_review" && s.reviews_step === reviewsStepId);
+    if (!step || step.type !== "ai_review") return { error: `no ai_review step reviews "${reviewsStepId}"` };
+
+    const context = await readContext(supabase, user.orgId, user.id, exercise.reads);
+
+    const critique = await reviewContent({
+      promptRef: step.prompt_ref,
+      context,
+      answers: { [reviewsStepId]: currentAnswer },
+    });
+    return { critique };
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) };
   }
