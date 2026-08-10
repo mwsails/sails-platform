@@ -221,18 +221,19 @@ now both exercised live too (`process.stages`, `objections.objections`).
 Added namespace: `pain_tree.cost_of_inaction_estimate` (scalar) — see both
 `namespace-dictionary.ts` and the external contract doc.
 
-**AI suggestions — pipeline built, unverified live** (`src/lib/ai/suggest.ts`,
-`AiSuggestPanel.tsx`). A new `suggest: {prompt_ref, count, reads}` block on
+**AI suggestions — live and verified** (`src/lib/ai/suggest.ts`,
+`AiSuggestPanel.tsx`). A `suggest: {prompt_ref, count, reads}` block on
 `input_list`/dynamic-`input_table` steps drives a "Get AI suggestions" panel:
-calls Claude (model + prompt come from `content/prompts/*.md`, same frontmatter
-convention as `ai_review`) via a forced tool call for structured output, no
-free-form parsing, then each suggestion is a card with **Add** that drops it
-into the step's own editable rows — so it flows through the identical
-`writes` mapping as a manually-typed entry, no separate AI-output write path
-to keep in sync. Wired onto 5 exercises: `buyer-impact-areas`, `icp-segments`,
-`persona-builder`, `objection-bank-builder`, `process-stages-builder`. Model
-is `claude-opus-4-8` per every prompt file (not a per-feature choice — that's
-the house default absent an explicit ask for something cheaper/faster).
+calls Claude (model + prompt come from `content/prompts/*.md`) via a forced
+tool call for structured output, no free-form parsing, then each suggestion
+is a card with **Add** that drops it into the step's own editable rows — so
+it flows through the identical `writes` mapping as a manually-typed entry, no
+separate AI-output write path to keep in sync. Wired onto 5 exercises:
+`buyer-impact-areas`, `icp-segments`, `persona-builder`,
+`objection-bank-builder`, `process-stages-builder`. Model is
+`claude-opus-4-8` per most prompt files (the house default absent an
+explicit ask for something cheaper/faster) — `review-impact-areas.md` is the
+one exception, on `claude-sonnet-5`.
 
 Caught one real bug during verification: Next.js redacts thrown Server
 Action error messages to a generic digest in production builds, so a
@@ -242,11 +243,41 @@ throwing — confirmed live that the exact intended message now renders. This
 pattern (return, don't throw, for any Server Action error a user should
 read) is worth reusing for other actions doing free-form `throw new Error()`.
 
-Not done (Phase 2 remainder): `ai_review`/`ai_generate` step types (still
-render a placeholder), DOCX/PDF export. `ANTHROPIC_API_KEY` is not yet set
-anywhere — needed before any AI step, or the new AI-suggestions panel above,
-can run for real; verified live only up to that boundary (the panel's error
-state), not an actual generated suggestion. `rank` is the one step type
+`ANTHROPIC_API_KEY` is set (in `.env.local`) — verified live end to end, not
+just to the "not configured" error boundary: a real "Get AI suggestions"
+call against `buyer-impact-areas` returned genuine, context-specific
+suggestions, added cleanly into the step's rows.
+
+**`ai_generate` — live** (`AiGenerateField.tsx`, `generateForStep`). Same
+forced-tool-call/return-not-throw shape as AI suggestions, but drafts one
+artifact instead of proposing several candidate rows; the draft always lands
+in an editable field before it can be saved (Exercise Schema §6/§9, CLAUDE.md
+rule 5 above), never written straight to context. Live in `opp-rate-diagnosis`
+and `objection-framework`.
+
+**`ai_review` — live** (`AiReviewPanel.tsx`, `src/lib/ai/review.ts`,
+`reviewForStep`). The last step type that was still a placeholder. Non-
+blocking, on-demand critique of another step's in-progress answer — never
+writes to context itself (Exercise Schema §9), so there is no editable-field
+routing to worry about, just a "Get feedback" trigger and read-only prose
+back. Looked up by `reviews_step` (the id of the step it critiques), not its
+own `id` — `ai_review` never declares one, since it never appears on the
+right side of a `writes` mapping. `currentAnswer` comes from the exercise
+form's own client-side state, not `readContext`: the step under review has
+not been submitted yet, so nothing about it exists in context yet. Live in
+`buyer-impact-areas`. Verified live end to end: filled in `impact_areas`,
+clicked "Get feedback," got a real, specific, item-by-item critique back
+(and, when only one of three rows had content, the model correctly said so
+instead of inventing feedback for empty rows). Also fixed a real content gap
+this surfaced — `review-impact-areas.md`'s prompt references
+`{{context.company.name}}`/`{{context.company.product_name}}`, but
+`buyer-impact-areas.yml`'s exercise-level `reads` only listed
+`icp.segments`/`personas.personas` (the nested `suggest.reads` on the
+`impact_areas` step had them, but `ai_review` has no `reads` of its own — it
+rides the same shared `context` prop every step gets, populated from the
+exercise-level `reads`). Both fields are now in that list.
+
+Not done (Phase 2 remainder): DOCX/PDF export. `rank` is the one step type
 still implemented-but-unseeded live.
 
 ## Hosting (once past Phase 0)

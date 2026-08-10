@@ -11,6 +11,8 @@ time_estimate: 20m
 intent: training
 
 reads:
+  - company.name
+  - company.product_name
   - icp.segments
   - personas.personas
 requires:
