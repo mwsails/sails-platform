@@ -277,8 +277,39 @@ this surfaced — `review-impact-areas.md`'s prompt references
 rides the same shared `context` prop every step gets, populated from the
 exercise-level `reads`). Both fields are now in that list.
 
-Not done (Phase 2 remainder): DOCX/PDF export. `rank` is the one step type
-still implemented-but-unseeded live.
+**DOCX export — live** (`src/lib/playbook/export.ts`, `/playbook/export`
+route handler). The `docx` package had been an unused dependency since the
+Phase 0 skeleton commit, pre-positioned for this — `sections.ts`'s own doc
+comment says the markdown-lite format was chosen deliberately so it would
+be "a sane source for the eventual DOCX export... without needing a full
+markdown parser dependency." Turned out true: converting `##`/`-`/`**bold**`
+into `docx` heading/bullet/bold-run objects was a small, dedicated parser,
+not a shared one with `MarkdownLite.tsx` (different output shapes — React
+nodes vs `docx` objects — not worth an AST layer for this). A plain GET
+route, not a Server Action, since a real file download needs
+`Content-Disposition` headers on the response itself. Exports exactly what
+the Playbook page shows on screen (draft and approved sections alike, no
+separate approval gate) — this is a user-initiated "give me a file" action,
+not a publish step. `docx` needs no native binaries or headless browser, so
+it runs cleanly in a Vercel serverless function, unlike most PDF options
+(none installed; still not done, and needs its own scoping — the obvious
+paths, e.g. headless-Chrome-based HTML-to-PDF, don't fit Vercel serverless
+the way `docx` does).
+
+There is also an `artifacts` table in the schema (`type: 'playbook_export'`,
+`file_ref` documented as a Supabase Storage path) that nothing writes to —
+looks aimed at a persisted-download-history feature, deliberately not
+wired up here; this export is generated on request, not stored.
+
+Verified live end to end: seeded a real org, generated four sections with
+real content, downloaded the file, confirmed the response's Content-Type,
+Content-Disposition, and ZIP magic bytes were all correct, then decoded and
+inspected `word/document.xml` directly — the exact seeded company name,
+tier, ICP segment, persona, and objection all came through with correct
+heading/bullet/bold structure.
+
+Not done: PDF export (see above). `rank` is the one step type still
+implemented-but-unseeded live.
 
 ## Hosting (once past Phase 0)
 

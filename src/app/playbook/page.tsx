@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-org";
 import { loadPlaybookSections } from "@/lib/playbook/generate";
 import { SectionCard } from "./SectionCard";
-import { DocumentIcon } from "@/components/icons";
+import { DocumentIcon, DownloadIcon } from "@/components/icons";
 
 export default async function PlaybookPage() {
   const supabase = await createClient();
@@ -15,11 +15,24 @@ export default async function PlaybookPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
-      <h1 className="text-2xl font-semibold text-[var(--foreground)]">Playbook</h1>
-      <p className="mt-1 text-sm text-muted">
-        Every section below is built from your own exercise answers. Generate a section once
-        there&apos;s context to draw from, and regenerate it whenever it&apos;s flagged stale.
-      </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-[var(--foreground)]">Playbook</h1>
+          <p className="mt-1 text-sm text-muted">
+            Every section below is built from your own exercise answers. Generate a section once
+            there&apos;s context to draw from, and regenerate it whenever it&apos;s flagged stale.
+          </p>
+        </div>
+        {readyCount > 0 && (
+          <a
+            href="/playbook/export"
+            className="mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--sails-border)] bg-[var(--background)] px-3.5 py-2 text-xs font-medium text-[var(--foreground)] shadow-[var(--shadow-soft)] transition-colors duration-150 hover:bg-[var(--sails-gray)]"
+          >
+            <DownloadIcon className="h-3.5 w-3.5" />
+            Export to Word
+          </a>
+        )}
+      </div>
 
       {readyCount > 0 ? (
         <div className="mt-5 rounded-2xl border border-[var(--sails-border)] bg-[var(--background)] p-4 shadow-[var(--shadow-soft)]">
