@@ -120,6 +120,12 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
       evidence: scalar,
       overall_read: scalar, // "confirmed_champion" | "needs_more_work" | "not_a_real_champion"
     }),
+    // Persona ids (personas.personas[].id, the system-injected one, not a
+    // user-facing field) in rank order, most-influential first — the first
+    // real exercise content to use the `rank` step type's `source: context`
+    // mode. Ids, not titles or positions, so this stays correct even if
+    // personas.personas is later edited or reordered.
+    priority_order: arrayOfScalar,
   },
 
   pain_tree: {

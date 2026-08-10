@@ -1,0 +1,46 @@
+# First real exercise content to use the `rank` step type's `source:
+# context` mode (see Exercise Schema v1 §... rank, and its own worked
+# example — this exercise follows it closely: rank personas.personas by
+# deal influence). Deliberately its own small exercise rather than a step
+# bolted onto persona-builder — that exercise is already complete and
+# sessioned; adding a step to it would change what an already-submitted
+# session's `answers` shape means for anyone who finished it before this
+# shipped.
+slug: persona-priority-ranking
+schema_version: 1
+title: "Rank Your Personas by Deal Influence"
+module: personas-buyer-roles
+tracks: [smb, mid-market]
+time_estimate: 5m
+intent: development
+
+reads: [personas.personas]
+requires: [personas.personas]
+
+writes:
+  - from: answers.priority_order
+    to: personas.priority_order
+    mode: replace
+
+steps:
+  - type: teach
+    body: |
+      Not every persona in the room carries the same weight. Ranking them by
+      deal influence, not by who you talk to most, tells you who actually
+      needs to be won over and who's along for the ride.
+
+  - type: example
+    body: |
+      {{context.personas.personas[0].title}} might be who you email every
+      day, but if they can't move the decision, they're not your highest-
+      influence persona. Rank by who actually decides, not who's easiest
+      to reach.
+
+  - id: priority_order
+    type: rank
+    label: "Rank your personas from most to least influential on this deal"
+    source: context
+    context_key: personas.personas
+
+  - type: output_preview
+    shows_writes: true

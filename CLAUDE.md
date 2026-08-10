@@ -308,8 +308,22 @@ inspected `word/document.xml` directly — the exact seeded company name,
 tier, ICP segment, persona, and objection all came through with correct
 heading/bullet/bold structure.
 
-Not done: PDF export (see above). `rank` is the one step type still
-implemented-but-unseeded live.
+**`rank` step type — now seeded live** (`persona-priority-ranking` exercise,
+`personas-buyer-roles` module). Rank `personas.personas` by deal influence,
+via `rank`'s `source: context` mode — the schema doc's own worked example,
+built almost exactly as written there. Caught and fixed a real bug in
+`RankField` (`ExerciseForm.tsx`) along the way: for `source: context`, it
+was using each item's array position as its rank value (`String(i)`), not
+the stable `id` the context store already injects on every array-of-objects
+field (`store.ts`). An index goes silently stale the moment the underlying
+list is edited or reordered later — a stored "1" would then point at
+whatever item happens to sit at position 1, not the item actually ranked
+there. Since no exercise had ever used `source: context` before this, the
+bug had never been exercised live. Fixed to use `.id`; new namespace field
+`personas.priority_order` stores real persona ids in rank order, verified
+live via DB query after reordering the list in the UI.
+
+Not done: PDF export (see above).
 
 ## Hosting (once past Phase 0)
 
