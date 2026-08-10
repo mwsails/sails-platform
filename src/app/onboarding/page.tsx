@@ -29,6 +29,7 @@ export default async function OnboardingPage() {
     "icp.segments",
     "company.buyer_title",
     "company.recommended_tier",
+    "org.brand.logo",
   ]);
 
   // Forced order (Business, then You, then Sales Motion) — respondent.role
@@ -66,6 +67,11 @@ export default async function OnboardingPage() {
   // trigger, just moved here (see that file's header comment).
   const dealShapeDone =
     typeof context["company.recommended_tier"] === "string" && context["company.recommended_tier"] !== "";
+  // Every org.brand.* field is optional (see namespace comment) — presence
+  // of the key, not a non-empty value, is what "done" means here, same
+  // reasoning as teamDone above. All six are always written together by
+  // saveBrand, so checking just one is enough.
+  const brandDone = "org.brand.logo" in context;
 
   if (
     businessDone &&
@@ -75,7 +81,8 @@ export default async function OnboardingPage() {
     teamDone &&
     metricsDone &&
     customerDone &&
-    dealShapeDone
+    dealShapeDone &&
+    brandDone
   )
     redirect("/journey");
 
@@ -93,7 +100,9 @@ export default async function OnboardingPage() {
               ? "metrics"
               : !customerDone
                 ? "customer"
-                : "deal-shape";
+                : !dealShapeDone
+                  ? "deal-shape"
+                  : "brand";
 
   return (
     <OnboardingFlow
@@ -106,6 +115,7 @@ export default async function OnboardingPage() {
       metricsDone={metricsDone}
       customerDone={customerDone}
       dealShapeDone={dealShapeDone}
+      brandDone={brandDone}
       hasExistingMotion={hasExistingMotion === "yes" || hasExistingMotion === "no" ? hasExistingMotion : null}
       initialBusiness={{
         domain: (context["company.domain"] as string) ?? "",

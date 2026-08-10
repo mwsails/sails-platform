@@ -13,12 +13,23 @@ import {
   deferLeadSources,
   saveCustomerProfile,
   saveDealShape,
+  scrapeBrand,
+  saveBrand,
 } from "./actions";
 import { computeSourceMetrics, computeBlended, LEAD_SOURCES, type SourceInput } from "@/lib/onboarding/metrics";
 import { TEAM_ROLES } from "@/lib/onboarding/team";
 import { CheckCircleIcon, CircleIcon, SparkleIcon, ArrowRightIcon, PlusIcon, XIcon, InfoIcon } from "@/components/icons";
 
-type Step = "business" | "role" | "experience" | "motion" | "team" | "metrics" | "customer" | "deal-shape";
+type Step =
+  | "business"
+  | "role"
+  | "experience"
+  | "motion"
+  | "team"
+  | "metrics"
+  | "customer"
+  | "deal-shape"
+  | "brand";
 
 type BusinessFields = {
   domain: string;
@@ -48,6 +59,7 @@ const ALL_STEPS: { id: Step; label: string; bucket: string }[] = [
   { id: "metrics", label: "Metrics by source", bucket: "Sales motion" },
   { id: "customer", label: "Who you sell to", bucket: "Customer" },
   { id: "deal-shape", label: "Your deal shape", bucket: "Customer" },
+  { id: "brand", label: "Your brand", bucket: "Brand" },
 ];
 
 const COMPANY_SIZE_OPTIONS = [
@@ -115,6 +127,7 @@ export function OnboardingFlow({
   metricsDone,
   customerDone,
   dealShapeDone,
+  brandDone,
   hasExistingMotion,
   initialBusiness,
 }: {
@@ -127,6 +140,7 @@ export function OnboardingFlow({
   metricsDone: boolean;
   customerDone: boolean;
   dealShapeDone: boolean;
+  brandDone: boolean;
   hasExistingMotion: "yes" | "no" | null;
   initialBusiness: BusinessFields;
 }) {
@@ -140,6 +154,7 @@ export function OnboardingFlow({
     metrics: metricsDone,
     customer: customerDone,
     "deal-shape": dealShapeDone,
+    brand: brandDone,
   });
   const [motionAnswer, setMotionAnswer] = useState<"yes" | "no" | null>(hasExistingMotion);
   const router = useRouter();
@@ -275,6 +290,14 @@ export function OnboardingFlow({
             <DealShapeStep
               onDone={() => {
                 setDone((prev) => ({ ...prev, "deal-shape": true }));
+                setStep("brand");
+              }}
+            />
+          )}
+          {step === "brand" && (
+            <BrandStep
+              onDone={() => {
+                setDone((prev) => ({ ...prev, brand: true }));
                 finish();
               }}
             />
@@ -1030,6 +1053,199 @@ function DealShapeStep({ onDone }: { onDone: () => void }) {
       <button type="button" onClick={confirm} disabled={isPending || !complete} className={primaryButtonClass}>
         Continue <ArrowRightIcon className="h-3.5 w-3.5" />
       </button>
+    </div>
+  );
+}
+
+type BrandFields = {
+  logo: string;
+  color_primary: string;
+  color_secondary: string;
+  color_accent: string;
+  font_heading: string;
+  font_body: string;
+};
+
+const EMPTY_BRAND: BrandFields = {
+  logo: "",
+  color_primary: "",
+  color_secondary: "",
+  color_accent: "",
+  font_heading: "",
+  font_body: "",
+};
+
+function isHexColor(v: string): boolean {
+  return /^#[0-9a-fA-F]{3}$|^#[0-9a-fA-F]{6}$/.test(v.trim());
+}
+
+function BrandStep({ onDone }: { onDone: () => void }) {
+  const [url, setUrl] = useState("");
+  const [fields, setFields] = useState<BrandFields>(EMPTY_BRAND);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  // Every field here is optional (unlike Business, where hasDraft can be
+  // inferred from the required company.name), so "has the review card
+  // opened" needs its own flag rather than being inferred from field
+  // content — a scrape that genuinely finds nothing should still land on
+  // the review card, not silently reappear the URL prompt.
+  const [revealed, setRevealed] = useState(false);
+
+  function read() {
+    setError(null);
+    startTransition(async () => {
+      const result = await scrapeBrand(url);
+      if ("error" in result) {
+        setError(result.error);
+        setRevealed(true);
+        return;
+      }
+      setFields(result.content as BrandFields);
+      setRevealed(true);
+    });
+  }
+
+  function updateField(name: keyof BrandFields, value: string) {
+    setFields((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function confirm() {
+    startTransition(async () => {
+      await saveBrand(fields);
+      onDone();
+    });
+  }
+
+  return (
+    <div>
+      <span className={eyebrowClass}>Onboarding · Brand</span>
+      <h1 className={headlineClass}>Your brand</h1>
+      <p className="mt-3 text-[15px] leading-relaxed text-muted">
+        So anything generated for you later, decks, sequences, one-pagers, looks and sounds like you, not a
+        template. Everything here is optional and easy to fix later.
+      </p>
+
+      {!revealed && (
+        <div className="mt-7 rounded-2xl border border-[var(--sails-border)] bg-[var(--background)] p-5 shadow-[var(--shadow-soft)]">
+          <label className="block text-xs font-medium text-muted">Company website</label>
+          <div className="mt-1.5 flex items-center gap-2">
+            <input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="yourcompany.com"
+              className={fieldClass}
+            />
+            <button
+              type="button"
+              onClick={read}
+              disabled={isPending}
+              className="shrink-0 rounded-full bg-[var(--sails-blue)] px-5 py-2.5 text-sm font-medium text-white shadow-[var(--shadow-soft)] transition-colors duration-150 hover:bg-[var(--sails-navy)] disabled:opacity-50"
+            >
+              {isPending ? "Reading your site…" : "Read brand kit"}
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setRevealed(true)}
+            className="mt-3 text-xs text-muted underline decoration-dotted hover:text-[var(--foreground)]"
+          >
+            Skip, I&apos;ll fill this in myself
+          </button>
+        </div>
+      )}
+
+      {revealed && (
+        <div className="mt-7 flex flex-col gap-4 rounded-2xl border border-[var(--sails-border)] bg-[var(--background)] p-5 shadow-[var(--shadow-soft)]">
+          {url && !error && (
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--sails-border)] pb-4">
+              <span className={pillClass}>
+                <SparkleIcon className="h-3 w-3" />
+                From the scrape
+              </span>
+              <button
+                type="button"
+                onClick={read}
+                disabled={isPending}
+                className="shrink-0 rounded-full px-2.5 py-1 text-xs font-medium text-[var(--sails-blue)] transition-colors duration-150 hover:bg-[var(--sails-blue-light)] disabled:opacity-50"
+              >
+                {isPending ? "Reading…" : "Re-read site"}
+              </button>
+            </div>
+          )}
+          {error && <div className="text-xs text-red-600">{error}</div>}
+
+          <label className="block">
+            <span className="text-xs font-medium text-muted">Logo URL</span>
+            <div className="mt-1 flex items-center gap-2">
+              {fields.logo && (
+                // eslint-disable-next-line @next/next/no-img-element -- arbitrary scraped domain, next/image needs a known allowlist
+                <img
+                  src={fields.logo}
+                  alt=""
+                  className="h-9 w-9 shrink-0 rounded-md border border-[var(--sails-border)] bg-[var(--sails-gray)] object-contain"
+                />
+              )}
+              <input
+                value={fields.logo}
+                onChange={(e) => updateField("logo", e.target.value)}
+                placeholder="https://yourcompany.com/logo.png"
+                className={`${fieldClass} mt-0`}
+              />
+            </div>
+          </label>
+
+          <div className="grid grid-cols-3 gap-3">
+            {(
+              [
+                { name: "color_primary" as const, label: "Primary", placeholder: "#0D1B4B" },
+                { name: "color_secondary" as const, label: "Secondary", placeholder: "#2B60BE" },
+                { name: "color_accent" as const, label: "Accent", placeholder: "#F4F5F7" },
+              ]
+            ).map((c) => (
+              <label key={c.name} className="block">
+                <span className="text-xs font-medium text-muted">{c.label}</span>
+                <div className="mt-1 flex items-center gap-2">
+                  <span
+                    className="h-9 w-9 shrink-0 rounded-md border border-[var(--sails-border)]"
+                    style={{ backgroundColor: isHexColor(fields[c.name]) ? fields[c.name] : "transparent" }}
+                  />
+                  <input
+                    value={fields[c.name]}
+                    onChange={(e) => updateField(c.name, e.target.value)}
+                    placeholder={c.placeholder}
+                    className={`${fieldClass} mt-0`}
+                  />
+                </div>
+              </label>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-xs font-medium text-muted">Heading font</span>
+              <input
+                value={fields.font_heading}
+                onChange={(e) => updateField("font_heading", e.target.value)}
+                placeholder="e.g. Playfair Display"
+                className={fieldClass}
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-muted">Body font</span>
+              <input
+                value={fields.font_body}
+                onChange={(e) => updateField("font_body", e.target.value)}
+                placeholder="e.g. Inter"
+                className={fieldClass}
+              />
+            </label>
+          </div>
+
+          <button type="button" onClick={confirm} disabled={isPending} className={primaryButtonClass}>
+            Finish onboarding <ArrowRightIcon className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
