@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-org";
 import { writeContext, readContext } from "@/lib/context/store";
-import { scrapeAndExtract } from "@/lib/scrape/firecrawl";
+import { scrapeAndExtract, scrapeBrandKit } from "@/lib/scrape/firecrawl";
 import { recommendTrack } from "@/lib/tracks/recommend";
 import {
   computeSourceMetrics,
@@ -285,6 +285,77 @@ export async function saveDealShape(fields: {
       procurement_involved: fields.procurementInvolved,
       __recommended_tier: rec.tier,
     },
+    "manual",
+    null
+  );
+  revalidatePath("/onboarding");
+}
+
+/**
+ * Brand bucket, step 1 of 1 — scrape + review, same return-not-throw shape
+ * as scrapeBusiness. Unlike that function, every proposed field here is
+ * optional and best-effort (see scrapeBrandKit's own doc comment for
+ * exactly what's genuinely observable vs. always left blank) — a failed or
+ * empty scrape isn't a hard stop, the screen just starts blank for manual
+ * entry instead.
+ */
+export async function scrapeBrand(
+  url: string
+): Promise<{ content: Record<string, string> } | { error: string }> {
+  try {
+    const supabase = await createClient();
+    const user = await getCurrentUser(supabase);
+    if (!user) return { error: "not authenticated" };
+
+    const trimmed = url.trim();
+    if (!trimmed) return { error: "Enter a website URL first." };
+    const normalized = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    try {
+      new URL(normalized);
+    } catch {
+      return { error: "That doesn't look like a valid URL." };
+    }
+
+    const content = await scrapeBrandKit(normalized);
+    return { content };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/**
+ * Brand bucket, confirm — writes the reviewed (possibly hand-corrected or
+ * entirely hand-typed) brand kit. Org-scoped: a company's brand, not a
+ * per-rep preference. All six fields are optional — completion is checked
+ * by key presence in onboarding/page.tsx, not by any field having a
+ * non-empty value, same "presence, not value" reasoning as
+ * team.current_roles.
+ */
+export async function saveBrand(fields: {
+  logo: string;
+  color_primary: string;
+  color_secondary: string;
+  color_accent: string;
+  font_heading: string;
+  font_body: string;
+}) {
+  const supabase = await createClient();
+  const user = await getCurrentUser(supabase);
+  if (!user) throw new Error("not authenticated");
+
+  await writeContext(
+    supabase,
+    user.orgId,
+    user.id,
+    [
+      { from: "answers.logo", to: "org.brand.logo", mode: "replace" },
+      { from: "answers.color_primary", to: "org.brand.color_primary", mode: "replace" },
+      { from: "answers.color_secondary", to: "org.brand.color_secondary", mode: "replace" },
+      { from: "answers.color_accent", to: "org.brand.color_accent", mode: "replace" },
+      { from: "answers.font_heading", to: "org.brand.font_heading", mode: "replace" },
+      { from: "answers.font_body", to: "org.brand.font_body", mode: "replace" },
+    ],
+    fields,
     "manual",
     null
   );

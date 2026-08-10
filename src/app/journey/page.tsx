@@ -52,6 +52,7 @@ export default async function JourneyPage() {
       "metrics.lead_sources",
       "icp.segments",
       "company.buyer_title",
+      "org.brand.logo",
     ]),
   ]);
 
@@ -79,7 +80,8 @@ export default async function JourneyPage() {
     icpSegments.length > 0 &&
     typeof context["company.buyer_title"] === "string" &&
     typeof context["company.recommended_tier"] === "string" &&
-    context["company.recommended_tier"] !== "";
+    context["company.recommended_tier"] !== "" &&
+    "org.brand.logo" in context;
 
   if (!onboardingComplete) {
     redirect("/onboarding");
