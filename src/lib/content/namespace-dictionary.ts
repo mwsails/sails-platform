@@ -356,6 +356,13 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
     // the six fixed values. A CRO gap-check reads this directly instead of
     // reconstructing the diff itself.
     unused_sources: arrayOfScalar,
+    // "yes" when deferLeadSources runs — distinguishes "chose I'll pull
+    // these later" from "genuinely has no funnel yet" (has_existing_motion
+    // === "no"), both of which leave lead_sources empty. Onboarding needs
+    // this distinction to resume correctly: a deferred org should land back
+    // on the Your funnel screen if they return with real numbers, not be
+    // treated as done just because a commitment record exists somewhere.
+    deferred: scalar,
   },
 
   // Minimal for now — a log of generated Awareness scenarios within

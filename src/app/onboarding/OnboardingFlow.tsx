@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   scrapeBusiness,
   saveBusiness,
+  saveBrand,
   saveRole,
   saveExperience,
   saveHasExistingMotion,
@@ -13,23 +14,18 @@ import {
   deferLeadSources,
   saveCustomerProfile,
   saveDealShape,
-  scrapeBrand,
-  saveBrand,
 } from "./actions";
-import { computeSourceMetrics, computeBlended, LEAD_SOURCES, type SourceInput } from "@/lib/onboarding/metrics";
+import {
+  computeSourceMetrics,
+  computeBlended,
+  LEAD_SOURCES,
+  type SourceInput,
+  type Blended,
+} from "@/lib/onboarding/metrics";
 import { TEAM_ROLES } from "@/lib/onboarding/team";
 import { CheckCircleIcon, CircleIcon, SparkleIcon, ArrowRightIcon, PlusIcon, XIcon, InfoIcon } from "@/components/icons";
 
-type Step =
-  | "business"
-  | "role"
-  | "experience"
-  | "motion"
-  | "team"
-  | "metrics"
-  | "customer"
-  | "deal-shape"
-  | "brand";
+type Step = "business" | "role" | "experience" | "motion" | "team" | "customer" | "metrics" | "deal-shape";
 
 type BusinessFields = {
   domain: string;
@@ -50,16 +46,34 @@ const BUSINESS_FIELD_LABELS: { name: keyof BusinessFields; label: string }[] = [
   { name: "stage", label: "Company stage" },
 ];
 
+type BrandFields = {
+  logo: string;
+  color_primary: string;
+  color_secondary: string;
+  color_accent: string;
+  font_heading: string;
+  font_body: string;
+};
+
+function isHexColor(v: string): boolean {
+  return /^#[0-9a-fA-F]{3}$|^#[0-9a-fA-F]{6}$/.test(v.trim());
+}
+
+// Customer bucket now hosts Who-you-sell-to, Your-funnel, and the
+// fallback Your-deal-shape in sequence — Customer has to be known before
+// Your funnel so target_customer_size is available the moment funnel data
+// (or its absence) lets tier get computed. Deal Shape only ever shows when
+// Your funnel didn't produce real data (has_existing_motion is "no", or
+// deferred) — see hasFunnelData/metricsHasData below.
 const ALL_STEPS: { id: Step; label: string; bucket: string }[] = [
   { id: "business", label: "Your business", bucket: "Business" },
   { id: "role", label: "Your role", bucket: "You" },
   { id: "experience", label: "Your experience", bucket: "You" },
   { id: "motion", label: "Existing motion?", bucket: "Sales motion" },
   { id: "team", label: "Your team", bucket: "Sales motion" },
-  { id: "metrics", label: "Metrics by source", bucket: "Sales motion" },
   { id: "customer", label: "Who you sell to", bucket: "Customer" },
+  { id: "metrics", label: "Your funnel", bucket: "Customer" },
   { id: "deal-shape", label: "Your deal shape", bucket: "Customer" },
-  { id: "brand", label: "Your brand", bucket: "Brand" },
 ];
 
 const COMPANY_SIZE_OPTIONS = [
@@ -124,12 +138,13 @@ export function OnboardingFlow({
   experienceDone,
   motionDone,
   teamDone,
-  metricsDone,
   customerDone,
+  metricsDone,
   dealShapeDone,
-  brandDone,
+  hasFunnelData,
   hasExistingMotion,
   initialBusiness,
+  initialBrand,
 }: {
   initialStep: Step;
   businessDone: boolean;
@@ -137,12 +152,13 @@ export function OnboardingFlow({
   experienceDone: boolean;
   motionDone: boolean;
   teamDone: boolean;
-  metricsDone: boolean;
   customerDone: boolean;
+  metricsDone: boolean;
   dealShapeDone: boolean;
-  brandDone: boolean;
+  hasFunnelData: boolean;
   hasExistingMotion: "yes" | "no" | null;
   initialBusiness: BusinessFields;
+  initialBrand: BrandFields;
 }) {
   const [step, setStep] = useState<Step>(initialStep);
   const [done, setDone] = useState({
@@ -151,12 +167,18 @@ export function OnboardingFlow({
     experience: experienceDone,
     motion: motionDone,
     team: teamDone,
-    metrics: metricsDone,
     customer: customerDone,
+    metrics: metricsDone,
     "deal-shape": dealShapeDone,
-    brand: brandDone,
   });
   const [motionAnswer, setMotionAnswer] = useState<"yes" | "no" | null>(hasExistingMotion);
+  // Tri-state, not boolean: null means "Your funnel hasn't run yet this
+  // session" (Deal Shape's sidebar visibility should stay conservative,
+  // i.e. shown, until we actually know). true means real data was
+  // submitted — Deal Shape is redundant and gets skipped entirely. false
+  // means deferred — Deal Shape is still needed to collect the routing
+  // fields the funnel screen didn't get to derive.
+  const [metricsHasData, setMetricsHasData] = useState<boolean | null>(hasFunnelData ? true : null);
   const router = useRouter();
 
   function finish() {
@@ -164,19 +186,46 @@ export function OnboardingFlow({
     router.refresh();
   }
 
-  // "No" skips straight to Customer — a zero-to-one founder has no team or
-  // funnel to report, but still has a target market and expected deal
-  // shape worth capturing now, same reasoning as onboarding capturing
-  // Business before any revenue exists.
+  // "No" skips straight to Customer — a zero-to-one founder has no team to
+  // report, but still has a target market and expected deal shape worth
+  // capturing now, same reasoning as onboarding capturing Business before
+  // any revenue exists.
   function advanceFromMotion(answer: "yes" | "no") {
     setMotionAnswer(answer);
     setDone((prev) => ({ ...prev, motion: true }));
     setStep(answer === "no" ? "customer" : "team");
   }
 
-  // "No" removes Team and Metrics from the visible flow entirely — a
-  // zero-to-one founder has no roles or funnel to report yet.
-  const visibleSteps = ALL_STEPS.filter((s) => (s.id !== "team" && s.id !== "metrics") || motionAnswer !== "no");
+  // A "no" motion answer skips Your funnel entirely (there's no funnel to
+  // report) straight to the fallback Deal Shape screen; a "yes" answer
+  // goes to Your funnel as normal.
+  function advanceFromCustomer() {
+    setDone((prev) => ({ ...prev, customer: true }));
+    setStep(motionAnswer === "no" ? "deal-shape" : "metrics");
+  }
+
+  // hasData distinguishes "submitted real numbers" (tier already computed
+  // there, Deal Shape is now redundant, done) from "deferred" (Deal Shape
+  // still has to collect what wasn't derived).
+  function advanceFromMetrics(hasData: boolean) {
+    setMetricsHasData(hasData);
+    setDone((prev) => ({ ...prev, metrics: true }));
+    if (hasData) {
+      finish();
+    } else {
+      setStep("deal-shape");
+    }
+  }
+
+  // "No" removes Team and Your funnel from the visible flow entirely (a
+  // zero-to-one founder has no roles or funnel to report), and once Your
+  // funnel has produced real data for a "yes" org, Deal Shape is redundant
+  // and drops out too.
+  const visibleSteps = ALL_STEPS.filter((s) => {
+    if ((s.id === "team" || s.id === "metrics") && motionAnswer === "no") return false;
+    if (s.id === "deal-shape" && metricsHasData === true) return false;
+    return true;
+  });
   const stepIndex = visibleSteps.findIndex((s) => s.id === step);
 
   return (
@@ -239,6 +288,7 @@ export function OnboardingFlow({
           {step === "business" && (
             <BusinessStep
               initial={initialBusiness}
+              initialBrand={initialBrand}
               onDone={() => {
                 setDone((prev) => ({ ...prev, business: true }));
                 setStep("role");
@@ -266,38 +316,16 @@ export function OnboardingFlow({
             <TeamStep
               onDone={() => {
                 setDone((prev) => ({ ...prev, team: true }));
-                setStep("metrics");
-              }}
-            />
-          )}
-          {step === "metrics" && (
-            <MetricsStep
-              onDone={() => {
-                setDone((prev) => ({ ...prev, metrics: true }));
                 setStep("customer");
               }}
             />
           )}
-          {step === "customer" && (
-            <CustomerStep
-              onDone={() => {
-                setDone((prev) => ({ ...prev, customer: true }));
-                setStep("deal-shape");
-              }}
-            />
-          )}
+          {step === "customer" && <CustomerStep onDone={advanceFromCustomer} />}
+          {step === "metrics" && <MetricsStep onDone={advanceFromMetrics} />}
           {step === "deal-shape" && (
             <DealShapeStep
               onDone={() => {
                 setDone((prev) => ({ ...prev, "deal-shape": true }));
-                setStep("brand");
-              }}
-            />
-          )}
-          {step === "brand" && (
-            <BrandStep
-              onDone={() => {
-                setDone((prev) => ({ ...prev, brand: true }));
                 finish();
               }}
             />
@@ -308,9 +336,92 @@ export function OnboardingFlow({
   );
 }
 
-function BusinessStep({ initial, onDone }: { initial: BusinessFields; onDone: () => void }) {
+function BrandKitFields({ brand, updateBrand }: { brand: BrandFields; updateBrand: (name: keyof BrandFields, value: string) => void }) {
+  return (
+    <div className="flex flex-col gap-3.5 border-t border-[var(--sails-border)] pt-4">
+      <span className="text-[10px] font-semibold tracking-[0.14em] text-muted uppercase">Brand kit</span>
+      <label className="block">
+        <span className="text-xs font-medium text-muted">Logo URL</span>
+        <div className="mt-1 flex items-center gap-2">
+          {brand.logo && (
+            // eslint-disable-next-line @next/next/no-img-element -- arbitrary scraped domain, next/image needs a known allowlist
+            <img
+              src={brand.logo}
+              alt=""
+              className="h-9 w-9 shrink-0 rounded-md border border-[var(--sails-border)] bg-[var(--sails-gray)] object-contain"
+            />
+          )}
+          <input
+            value={brand.logo}
+            onChange={(e) => updateBrand("logo", e.target.value)}
+            placeholder="https://yourcompany.com/logo.png"
+            className={`${fieldClass} mt-0`}
+          />
+        </div>
+      </label>
+
+      <div className="grid grid-cols-3 gap-3">
+        {(
+          [
+            { name: "color_primary" as const, label: "Primary", placeholder: "#0D1B4B" },
+            { name: "color_secondary" as const, label: "Secondary", placeholder: "#2B60BE" },
+            { name: "color_accent" as const, label: "Accent", placeholder: "#F4F5F7" },
+          ]
+        ).map((c) => (
+          <label key={c.name} className="block">
+            <span className="text-xs font-medium text-muted">{c.label}</span>
+            <div className="mt-1 flex items-center gap-2">
+              <span
+                className="h-9 w-9 shrink-0 rounded-md border border-[var(--sails-border)]"
+                style={{ backgroundColor: isHexColor(brand[c.name]) ? brand[c.name] : "transparent" }}
+              />
+              <input
+                value={brand[c.name]}
+                onChange={(e) => updateBrand(c.name, e.target.value)}
+                placeholder={c.placeholder}
+                className={`${fieldClass} mt-0`}
+              />
+            </div>
+          </label>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block">
+          <span className="text-xs font-medium text-muted">Heading font</span>
+          <input
+            value={brand.font_heading}
+            onChange={(e) => updateBrand("font_heading", e.target.value)}
+            placeholder="e.g. Playfair Display"
+            className={fieldClass}
+          />
+        </label>
+        <label className="block">
+          <span className="text-xs font-medium text-muted">Body font</span>
+          <input
+            value={brand.font_body}
+            onChange={(e) => updateBrand("font_body", e.target.value)}
+            placeholder="e.g. Inter"
+            className={fieldClass}
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function BusinessStep({
+  initial,
+  initialBrand,
+  onDone,
+}: {
+  initial: BusinessFields;
+  initialBrand: BrandFields;
+  onDone: () => void;
+}) {
   const [url, setUrl] = useState("");
   const [fields, setFields] = useState<BusinessFields>(initial);
+  const [brand, setBrand] = useState<BrandFields>(initialBrand);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [manual, setManual] = useState(false);
@@ -325,6 +436,7 @@ function BusinessStep({ initial, onDone }: { initial: BusinessFields; onDone: ()
         return;
       }
       setFields(result.content as BusinessFields);
+      setBrand(result.brand);
     });
   }
 
@@ -332,12 +444,16 @@ function BusinessStep({ initial, onDone }: { initial: BusinessFields; onDone: ()
     setFields((prev) => ({ ...prev, [name]: value }));
   }
 
+  function updateBrand(name: keyof BrandFields, value: string) {
+    setBrand((prev) => ({ ...prev, [name]: value }));
+  }
+
   function confirm() {
     startTransition(async () => {
       const trimmed = Object.fromEntries(
         Object.entries(fields).map(([k, v]) => [k, v.trim()])
       ) as unknown as BusinessFields;
-      await saveBusiness(trimmed);
+      await Promise.all([saveBusiness(trimmed), saveBrand(brand)]);
       onDone();
     });
   }
@@ -347,8 +463,9 @@ function BusinessStep({ initial, onDone }: { initial: BusinessFields; onDone: ()
       <span className={eyebrowClass}>Onboarding · Business</span>
       <h1 className={headlineClass}>Your business</h1>
       <p className="mt-3 text-[15px] leading-relaxed text-muted">
-        Give us the site and we read it — what you sell, your capabilities, your proof points. You correct what we
-        got wrong on this same screen. Nothing after this starts blank.
+        Give us the site and we read it — what you sell, your capabilities, your proof points, and your brand kit
+        (logo, colors, fonts) so anything generated for you later looks and sounds like you. You correct what we got
+        wrong on this same screen. Nothing after this starts blank.
       </p>
 
       {!hasDraft && (
@@ -413,6 +530,9 @@ function BusinessStep({ initial, onDone }: { initial: BusinessFields; onDone: ()
               </label>
             ))}
           </div>
+
+          <BrandKitFields brand={brand} updateBrand={updateBrand} />
+
           <button
             type="button"
             onClick={confirm}
@@ -757,11 +877,58 @@ function slugify(name: string): string {
     .replace(/^_+|_+$/g, "");
 }
 
-function MetricsStep({ onDone }: { onDone: () => void }) {
+/**
+ * Funnel stages are an ordered category (leads through closed won always
+ * narrow in that order), not independent categories — a single hue,
+ * decreasing in visual weight stage to stage, is the right encoding here
+ * (see the dataviz skill's ordinal-ramp guidance), not one color per stage.
+ * Bar width is relative to the top of the funnel (leads = 100%); a stage
+ * with zero volume still renders a hairline so the row doesn't vanish and
+ * silently imply "no data" for a stage that's actually just fully dropped.
+ */
+function FunnelInfographic({ blended }: { blended: Blended }) {
+  const stages: { label: string; value: number }[] = [
+    { label: "Leads", value: blended.totalLeads },
+    { label: "Meetings set", value: blended.totalSets },
+    { label: "Meetings held", value: blended.totalMeetings },
+    { label: "Opportunities", value: blended.totalOpportunities },
+    { label: "Closed won", value: blended.totalClosedWon },
+  ];
+  const top = stages[0].value || 1;
+
+  return (
+    <div className="mt-4 flex flex-col gap-2 border-t border-[var(--sails-blue)]/20 pt-4">
+      {stages.map((s, i) => {
+        const pct = s.value > 0 ? Math.max((s.value / top) * 100, 3) : 0;
+        const prevValue = i > 0 ? stages[i - 1].value : null;
+        const stepRate = prevValue ? (prevValue > 0 ? Math.round((s.value / prevValue) * 100) : 0) : null;
+        return (
+          <div key={s.label} className="flex items-center gap-3">
+            <span className="w-28 shrink-0 text-[11px] font-medium text-[var(--foreground)]">{s.label}</span>
+            <div className="h-5 flex-1 overflow-hidden rounded-full bg-white/50">
+              <div
+                className="h-full rounded-full transition-all duration-300 ease-[var(--ease-out)]"
+                style={{ width: `${pct}%`, backgroundColor: "var(--sails-blue)", opacity: 1 - i * 0.16 }}
+              />
+            </div>
+            <span className="w-10 shrink-0 text-right text-[11px] tabular-nums text-muted">{s.value}</span>
+            <span className="w-9 shrink-0 text-right text-[10px] tabular-nums text-faint">
+              {stepRate !== null ? `${stepRate}%` : ""}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MetricsStep({ onDone }: { onDone: (hasData: boolean) => void }) {
   const [enabled, setEnabled] = useState<Record<string, boolean>>({});
   const [rows, setRows] = useState<Record<string, Omit<SourceInput, "source">>>({});
   const [customSources, setCustomSources] = useState<{ value: string; label: string }[]>([]);
   const [newSourceName, setNewSourceName] = useState("");
+  const [stakeholderCount, setStakeholderCount] = useState("");
+  const [procurementInvolved, setProcurementInvolved] = useState<"yes" | "no" | "">("");
   const [isPending, startTransition] = useTransition();
 
   const allSources = [...LEAD_SOURCES, ...customSources];
@@ -795,25 +962,30 @@ function MetricsStep({ onDone }: { onDone: () => void }) {
   const computed = useMemo(() => activeSources.map(computeSourceMetrics), [activeSources]);
   const blended = useMemo(() => computeBlended(computed), [computed]);
   const hasAnyData = activeSources.length > 0;
+  // stakeholder/procurement only matter once there's real data to derive a
+  // tier from (see saveLeadSources) — asking for them before any source is
+  // even on would be answering a question the screen hasn't earned yet.
+  const readyToSubmit = hasAnyData && stakeholderCount !== "" && procurementInvolved !== "";
 
   function confirm() {
+    if (!readyToSubmit) return;
     startTransition(async () => {
-      await saveLeadSources(activeSources);
-      onDone();
+      await saveLeadSources(activeSources, stakeholderCount, procurementInvolved as "yes" | "no");
+      onDone(true);
     });
   }
 
   function defer() {
     startTransition(async () => {
       await deferLeadSources();
-      onDone();
+      onDone(false);
     });
   }
 
   return (
     <div>
-      <span className={eyebrowClass}>Onboarding · Sales motion</span>
-      <h1 className={headlineClass}>Metrics, by lead source</h1>
+      <span className={eyebrowClass}>Onboarding · Customer</span>
+      <h1 className={headlineClass}>Your funnel</h1>
       <p className="mt-3 text-[15px] leading-relaxed text-muted">
         Turn on the sources you actually track. Based on your last 90 days — a fixed window, not something you pick,
         so your numbers stay comparable over time and against your segment. Enter counts only — set rate, keep rate,
@@ -832,6 +1004,7 @@ function MetricsStep({ onDone }: { onDone: () => void }) {
             <Stat label="ARPA" value={formatMoney(blended.arpa)} />
             <Stat label="Velocity/day" value={formatMoney(blended.velocity)} />
           </div>
+          <FunnelInfographic blended={blended} />
         </div>
       )}
 
@@ -919,8 +1092,28 @@ function MetricsStep({ onDone }: { onDone: () => void }) {
         </div>
       </div>
 
+      {hasAnyData && (
+        <div className="mt-6 flex flex-col gap-3.5 rounded-2xl border border-[var(--sails-border)] bg-[var(--background)] p-5 shadow-[var(--shadow-soft)]">
+          <span className="text-[10px] font-semibold tracking-[0.14em] text-muted uppercase">
+            Two more, then we route you to the right track
+          </span>
+          <SelectField
+            label="People typically involved in a buying decision"
+            value={stakeholderCount}
+            onChange={setStakeholderCount}
+            options={STAKEHOLDER_COUNT_OPTIONS}
+          />
+          <SelectField
+            label="Does procurement, legal, or security usually get involved?"
+            value={procurementInvolved}
+            onChange={(v) => setProcurementInvolved(v as "yes" | "no")}
+            options={PROCUREMENT_OPTIONS}
+          />
+        </div>
+      )}
+
       <div className="mt-6 flex items-center gap-4">
-        <button type="button" onClick={confirm} disabled={isPending || !hasAnyData} className={primaryButtonClass}>
+        <button type="button" onClick={confirm} disabled={isPending || !readyToSubmit} className={primaryButtonClass}>
           Looks right — continue <ArrowRightIcon className="h-3.5 w-3.5" />
         </button>
         <button
@@ -1053,199 +1246,6 @@ function DealShapeStep({ onDone }: { onDone: () => void }) {
       <button type="button" onClick={confirm} disabled={isPending || !complete} className={primaryButtonClass}>
         Continue <ArrowRightIcon className="h-3.5 w-3.5" />
       </button>
-    </div>
-  );
-}
-
-type BrandFields = {
-  logo: string;
-  color_primary: string;
-  color_secondary: string;
-  color_accent: string;
-  font_heading: string;
-  font_body: string;
-};
-
-const EMPTY_BRAND: BrandFields = {
-  logo: "",
-  color_primary: "",
-  color_secondary: "",
-  color_accent: "",
-  font_heading: "",
-  font_body: "",
-};
-
-function isHexColor(v: string): boolean {
-  return /^#[0-9a-fA-F]{3}$|^#[0-9a-fA-F]{6}$/.test(v.trim());
-}
-
-function BrandStep({ onDone }: { onDone: () => void }) {
-  const [url, setUrl] = useState("");
-  const [fields, setFields] = useState<BrandFields>(EMPTY_BRAND);
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-  // Every field here is optional (unlike Business, where hasDraft can be
-  // inferred from the required company.name), so "has the review card
-  // opened" needs its own flag rather than being inferred from field
-  // content — a scrape that genuinely finds nothing should still land on
-  // the review card, not silently reappear the URL prompt.
-  const [revealed, setRevealed] = useState(false);
-
-  function read() {
-    setError(null);
-    startTransition(async () => {
-      const result = await scrapeBrand(url);
-      if ("error" in result) {
-        setError(result.error);
-        setRevealed(true);
-        return;
-      }
-      setFields(result.content as BrandFields);
-      setRevealed(true);
-    });
-  }
-
-  function updateField(name: keyof BrandFields, value: string) {
-    setFields((prev) => ({ ...prev, [name]: value }));
-  }
-
-  function confirm() {
-    startTransition(async () => {
-      await saveBrand(fields);
-      onDone();
-    });
-  }
-
-  return (
-    <div>
-      <span className={eyebrowClass}>Onboarding · Brand</span>
-      <h1 className={headlineClass}>Your brand</h1>
-      <p className="mt-3 text-[15px] leading-relaxed text-muted">
-        So anything generated for you later, decks, sequences, one-pagers, looks and sounds like you, not a
-        template. Everything here is optional and easy to fix later.
-      </p>
-
-      {!revealed && (
-        <div className="mt-7 rounded-2xl border border-[var(--sails-border)] bg-[var(--background)] p-5 shadow-[var(--shadow-soft)]">
-          <label className="block text-xs font-medium text-muted">Company website</label>
-          <div className="mt-1.5 flex items-center gap-2">
-            <input
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="yourcompany.com"
-              className={fieldClass}
-            />
-            <button
-              type="button"
-              onClick={read}
-              disabled={isPending}
-              className="shrink-0 rounded-full bg-[var(--sails-blue)] px-5 py-2.5 text-sm font-medium text-white shadow-[var(--shadow-soft)] transition-colors duration-150 hover:bg-[var(--sails-navy)] disabled:opacity-50"
-            >
-              {isPending ? "Reading your site…" : "Read brand kit"}
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => setRevealed(true)}
-            className="mt-3 text-xs text-muted underline decoration-dotted hover:text-[var(--foreground)]"
-          >
-            Skip, I&apos;ll fill this in myself
-          </button>
-        </div>
-      )}
-
-      {revealed && (
-        <div className="mt-7 flex flex-col gap-4 rounded-2xl border border-[var(--sails-border)] bg-[var(--background)] p-5 shadow-[var(--shadow-soft)]">
-          {url && !error && (
-            <div className="flex items-center justify-between gap-3 border-b border-[var(--sails-border)] pb-4">
-              <span className={pillClass}>
-                <SparkleIcon className="h-3 w-3" />
-                From the scrape
-              </span>
-              <button
-                type="button"
-                onClick={read}
-                disabled={isPending}
-                className="shrink-0 rounded-full px-2.5 py-1 text-xs font-medium text-[var(--sails-blue)] transition-colors duration-150 hover:bg-[var(--sails-blue-light)] disabled:opacity-50"
-              >
-                {isPending ? "Reading…" : "Re-read site"}
-              </button>
-            </div>
-          )}
-          {error && <div className="text-xs text-red-600">{error}</div>}
-
-          <label className="block">
-            <span className="text-xs font-medium text-muted">Logo URL</span>
-            <div className="mt-1 flex items-center gap-2">
-              {fields.logo && (
-                // eslint-disable-next-line @next/next/no-img-element -- arbitrary scraped domain, next/image needs a known allowlist
-                <img
-                  src={fields.logo}
-                  alt=""
-                  className="h-9 w-9 shrink-0 rounded-md border border-[var(--sails-border)] bg-[var(--sails-gray)] object-contain"
-                />
-              )}
-              <input
-                value={fields.logo}
-                onChange={(e) => updateField("logo", e.target.value)}
-                placeholder="https://yourcompany.com/logo.png"
-                className={`${fieldClass} mt-0`}
-              />
-            </div>
-          </label>
-
-          <div className="grid grid-cols-3 gap-3">
-            {(
-              [
-                { name: "color_primary" as const, label: "Primary", placeholder: "#0D1B4B" },
-                { name: "color_secondary" as const, label: "Secondary", placeholder: "#2B60BE" },
-                { name: "color_accent" as const, label: "Accent", placeholder: "#F4F5F7" },
-              ]
-            ).map((c) => (
-              <label key={c.name} className="block">
-                <span className="text-xs font-medium text-muted">{c.label}</span>
-                <div className="mt-1 flex items-center gap-2">
-                  <span
-                    className="h-9 w-9 shrink-0 rounded-md border border-[var(--sails-border)]"
-                    style={{ backgroundColor: isHexColor(fields[c.name]) ? fields[c.name] : "transparent" }}
-                  />
-                  <input
-                    value={fields[c.name]}
-                    onChange={(e) => updateField(c.name, e.target.value)}
-                    placeholder={c.placeholder}
-                    className={`${fieldClass} mt-0`}
-                  />
-                </div>
-              </label>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="text-xs font-medium text-muted">Heading font</span>
-              <input
-                value={fields.font_heading}
-                onChange={(e) => updateField("font_heading", e.target.value)}
-                placeholder="e.g. Playfair Display"
-                className={fieldClass}
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs font-medium text-muted">Body font</span>
-              <input
-                value={fields.font_body}
-                onChange={(e) => updateField("font_body", e.target.value)}
-                placeholder="e.g. Inter"
-                className={fieldClass}
-              />
-            </label>
-          </div>
-
-          <button type="button" onClick={confirm} disabled={isPending} className={primaryButtonClass}>
-            Finish onboarding <ArrowRightIcon className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
     </div>
   );
 }
