@@ -184,3 +184,13 @@ export function PencilIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function DownloadIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12 3v13" />
+      <path d="M7 11.5l5 4.5 5-4.5" />
+      <path d="M4 20h16" />
+    </svg>
+  );
+}
