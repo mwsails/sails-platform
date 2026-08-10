@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-org";
 import { readContext } from "@/lib/context/store";
 import { OnboardingFlow } from "./OnboardingFlow";
+import type { SourceInput } from "@/lib/onboarding/metrics";
 
 const BUSINESS_KEYS = [
   "company.domain",
@@ -32,13 +33,19 @@ export default async function OnboardingPage() {
     ...BUSINESS_KEYS,
     ...BRAND_KEYS,
     "respondent.role",
+    "respondent.title",
     "respondent.sales_experience",
     "company.has_existing_motion",
     "team.current_roles",
     "icp.segments",
     "company.buyer_title",
+    "company.target_customer_size",
     "metrics.lead_sources",
     "metrics.deferred",
+    "company.acv",
+    "company.cycle_length_days",
+    "company.stakeholder_count",
+    "company.procurement_involved",
     "company.recommended_tier",
   ]);
 
@@ -93,6 +100,10 @@ export default async function OnboardingPage() {
   if (businessDone && roleDone && experienceDone && motionDone && teamDone && customerDone && metricsDone && dealShapeDone)
     redirect("/journey");
 
+  const icpSegment = (icpSegments[0] as Record<string, unknown> | undefined) ?? {};
+  const teamRoles = Array.isArray(context["team.current_roles"]) ? context["team.current_roles"] : [];
+  const procurementInvolved = context["company.procurement_involved"];
+
   const initialStep = !businessDone
     ? "business"
     : !roleDone
@@ -138,6 +149,23 @@ export default async function OnboardingPage() {
         color_accent: (context["org.brand.color_accent"] as string) ?? "",
         font_heading: (context["org.brand.font_heading"] as string) ?? "",
         font_body: (context["org.brand.font_body"] as string) ?? "",
+      }}
+      initialRole={(context["respondent.role"] as string) ?? ""}
+      initialTitle={(context["respondent.title"] as string) ?? ""}
+      initialExperience={(context["respondent.sales_experience"] as string) ?? ""}
+      initialTeamRoles={teamRoles as { role: string; count: number }[]}
+      initialCustomer={{
+        industry: (icpSegment.industry as string) ?? "",
+        companySize: (context["company.target_customer_size"] as string) ?? (icpSegment.size_range as string) ?? "",
+        geography: (icpSegment.geography as string) ?? "",
+        buyerTitle: (context["company.buyer_title"] as string) ?? "",
+      }}
+      initialLeadSources={leadSources as SourceInput[]}
+      initialDealShape={{
+        acv: (context["company.acv"] as string) ?? "",
+        cycleLengthDays: (context["company.cycle_length_days"] as string) ?? "",
+        stakeholderCount: (context["company.stakeholder_count"] as string) ?? "",
+        procurementInvolved: procurementInvolved === "yes" || procurementInvolved === "no" ? procurementInvolved : "",
       }}
     />
   );

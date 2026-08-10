@@ -23,9 +23,22 @@ import {
   type Blended,
 } from "@/lib/onboarding/metrics";
 import { TEAM_ROLES } from "@/lib/onboarding/team";
-import { CheckCircleIcon, CircleIcon, SparkleIcon, ArrowRightIcon, PlusIcon, XIcon, InfoIcon } from "@/components/icons";
+import {
+  CheckCircleIcon,
+  CircleIcon,
+  SparkleIcon,
+  ArrowRightIcon,
+  PlusIcon,
+  XIcon,
+  InfoIcon,
+  PencilIcon,
+} from "@/components/icons";
 
 type Step = "business" | "role" | "experience" | "motion" | "team" | "customer" | "metrics" | "deal-shape";
+
+type TeamRoleEntry = { role: string; count: number };
+type CustomerFields = { industry: string; companySize: string; geography: string; buyerTitle: string };
+type DealShapeFields = { acv: string; cycleLengthDays: string; stakeholderCount: string; procurementInvolved: "yes" | "no" | "" };
 
 type BusinessFields = {
   domain: string;
@@ -75,6 +88,19 @@ const ALL_STEPS: { id: Step; label: string; bucket: string }[] = [
   { id: "metrics", label: "Your funnel", bucket: "Customer" },
   { id: "deal-shape", label: "Your deal shape", bucket: "Customer" },
 ];
+
+// "No" removes Team and Your funnel from the visible flow entirely (a
+// zero-to-one founder has no roles or funnel to report), and once Your
+// funnel has produced real data, Deal Shape is redundant and drops out too.
+// A pure function, not inlined into the component's visibleSteps memo below,
+// because go-back-and-edit needs to evaluate this against a HYPOTHETICAL
+// motion/metrics answer (the one just submitted, not yet committed to
+// state) to decide whether the step being returned to is still reachable.
+function stepVisible(id: Step, motionAns: "yes" | "no" | null, metricsData: boolean | null): boolean {
+  if ((id === "team" || id === "metrics") && motionAns === "no") return false;
+  if (id === "deal-shape" && metricsData === true) return false;
+  return true;
+}
 
 const COMPANY_SIZE_OPTIONS = [
   { value: "micro", label: "Under 20 employees" },
@@ -145,6 +171,13 @@ export function OnboardingFlow({
   hasExistingMotion,
   initialBusiness,
   initialBrand,
+  initialRole,
+  initialTitle,
+  initialExperience,
+  initialTeamRoles,
+  initialCustomer,
+  initialLeadSources,
+  initialDealShape,
 }: {
   initialStep: Step;
   businessDone: boolean;
@@ -159,6 +192,13 @@ export function OnboardingFlow({
   hasExistingMotion: "yes" | "no" | null;
   initialBusiness: BusinessFields;
   initialBrand: BrandFields;
+  initialRole: string;
+  initialTitle: string;
+  initialExperience: string;
+  initialTeamRoles: TeamRoleEntry[];
+  initialCustomer: CustomerFields;
+  initialLeadSources: SourceInput[];
+  initialDealShape: DealShapeFields;
 }) {
   const [step, setStep] = useState<Step>(initialStep);
   const [done, setDone] = useState({
@@ -185,11 +225,44 @@ export function OnboardingFlow({
   // step instead of shown immediately. Lost on a hard reload between
   // Business and Customer; an ephemeral convenience, not a promise.
   const [scrapedIndustry, setScrapedIndustry] = useState("");
+  // Set only when a completed step was reached via the sidebar's edit
+  // affordance, not by advancing forward normally — holds the step to
+  // return to once the edit is saved, instead of continuing forward through
+  // the rest of the sequence. Cleared the moment that return happens.
+  const [returnTo, setReturnTo] = useState<Step | null>(null);
   const router = useRouter();
 
   function finish() {
     router.push("/journey");
     router.refresh();
+  }
+
+  // Called at the end of every step's confirm handler, before falling back
+  // to that step's normal forward-advance target. Returns true (and
+  // navigates) if there's a pending edit to return to and its target is
+  // still reachable given the JUST-SUBMITTED motion/metrics answer — not the
+  // stale committed state, since an edit can flip a branch (e.g. motion
+  // yes->no) that hides the step someone was editing FROM. Returns false
+  // (does nothing) otherwise, so the caller proceeds with its own default.
+  function goBackOrElse(
+    motionAns: "yes" | "no" | null = motionAnswer,
+    metricsData: boolean | null = metricsHasData
+  ): boolean {
+    if (returnTo && stepVisible(returnTo, motionAns, metricsData)) {
+      setStep(returnTo);
+      setReturnTo(null);
+      return true;
+    }
+    setReturnTo(null);
+    return false;
+  }
+
+  // Sidebar click on an already-completed step: jump there to revise it,
+  // remembering the step to snap back to once the edit is saved.
+  function editStep(id: Step) {
+    if (!done[id] || id === step) return;
+    setReturnTo(step);
+    setStep(id);
   }
 
   // "No" skips straight to Customer — a zero-to-one founder has no team to
@@ -199,6 +272,7 @@ export function OnboardingFlow({
   function advanceFromMotion(answer: "yes" | "no") {
     setMotionAnswer(answer);
     setDone((prev) => ({ ...prev, motion: true }));
+    if (goBackOrElse(answer, metricsHasData)) return;
     setStep(answer === "no" ? "customer" : "team");
   }
 
@@ -207,15 +281,19 @@ export function OnboardingFlow({
   // goes to Your funnel as normal.
   function advanceFromCustomer() {
     setDone((prev) => ({ ...prev, customer: true }));
+    if (goBackOrElse()) return;
     setStep(motionAnswer === "no" ? "deal-shape" : "metrics");
   }
 
   // hasData distinguishes "submitted real numbers" (tier already computed
   // there, Deal Shape is now redundant, done) from "deferred" (Deal Shape
-  // still has to collect what wasn't derived).
+  // still has to collect what wasn't derived). goBackOrElse runs first with
+  // the just-submitted hasData, since it decides whether Deal Shape (the
+  // most common returnTo target reaching this step) is still visible.
   function advanceFromMetrics(hasData: boolean) {
     setMetricsHasData(hasData);
     setDone((prev) => ({ ...prev, metrics: true }));
+    if (goBackOrElse(motionAnswer, hasData)) return;
     if (hasData) {
       finish();
     } else {
@@ -223,16 +301,9 @@ export function OnboardingFlow({
     }
   }
 
-  // "No" removes Team and Your funnel from the visible flow entirely (a
-  // zero-to-one founder has no roles or funnel to report), and once Your
-  // funnel has produced real data for a "yes" org, Deal Shape is redundant
-  // and drops out too.
-  const visibleSteps = ALL_STEPS.filter((s) => {
-    if ((s.id === "team" || s.id === "metrics") && motionAnswer === "no") return false;
-    if (s.id === "deal-shape" && metricsHasData === true) return false;
-    return true;
-  });
+  const visibleSteps = ALL_STEPS.filter((s) => stepVisible(s.id, motionAnswer, metricsHasData));
   const stepIndex = visibleSteps.findIndex((s) => s.id === step);
+  const returnToLabel = returnTo ? ALL_STEPS.find((s) => s.id === returnTo)?.label : null;
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -257,15 +328,22 @@ export function OnboardingFlow({
                   {items.map((s) => {
                     const isDone = done[s.id];
                     const isCurrent = s.id === step;
+                    // Only a completed, non-current step can be jumped to —
+                    // there's nothing saved yet to prefill an unreached one,
+                    // and clicking the current step would be a no-op anyway.
+                    const editable = isDone && !isCurrent;
                     return (
                       <li key={s.id}>
-                        <div
-                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors duration-150 ${
+                        <button
+                          type="button"
+                          onClick={() => editStep(s.id)}
+                          disabled={!editable}
+                          className={`group/step flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm transition-colors duration-150 ${
                             isCurrent
                               ? "bg-white/12 font-medium text-white"
                               : isDone
-                                ? "text-white/85"
-                                : "text-white/35"
+                                ? "text-white/85 hover:bg-white/8 hover:text-white"
+                                : "cursor-default text-white/35"
                           }`}
                         >
                           {isDone ? (
@@ -273,8 +351,11 @@ export function OnboardingFlow({
                           ) : (
                             <CircleIcon className="h-4 w-4 shrink-0" />
                           )}
-                          {s.label}
-                        </div>
+                          <span className="flex-1">{s.label}</span>
+                          {editable && (
+                            <PencilIcon className="h-3.5 w-3.5 shrink-0 text-white/0 transition-opacity duration-150 group-hover/step:text-white/60" />
+                          )}
+                        </button>
                       </li>
                     );
                   })}
@@ -291,6 +372,12 @@ export function OnboardingFlow({
 
       <main className="flex-1 bg-[var(--background-tint)] px-6 py-14 sm:px-14">
         <div className="mx-auto max-w-xl">
+          {returnToLabel && (
+            <div className="mb-6 flex items-center gap-2 rounded-full bg-[var(--sails-blue-light)] px-4 py-2 text-xs font-medium text-[var(--sails-blue)]">
+              <PencilIcon className="h-3.5 w-3.5 shrink-0" />
+              Editing — saving this returns you to &ldquo;{returnToLabel}&rdquo;.
+            </div>
+          )}
           {step === "business" && (
             <BusinessStep
               initial={initialBusiness}
@@ -298,43 +385,60 @@ export function OnboardingFlow({
               onIndustryGuess={setScrapedIndustry}
               onDone={() => {
                 setDone((prev) => ({ ...prev, business: true }));
+                if (goBackOrElse()) return;
                 setStep("role");
               }}
             />
           )}
           {step === "role" && (
             <RoleStep
+              initialRole={initialRole}
+              initialTitle={initialTitle}
               onDone={() => {
                 setDone((prev) => ({ ...prev, role: true }));
+                if (goBackOrElse()) return;
                 setStep("experience");
               }}
             />
           )}
           {step === "experience" && (
             <ExperienceStep
+              initialExperience={initialExperience}
               onDone={() => {
                 setDone((prev) => ({ ...prev, experience: true }));
+                if (goBackOrElse()) return;
                 setStep("motion");
               }}
             />
           )}
-          {step === "motion" && <MotionStep onDone={advanceFromMotion} />}
+          {step === "motion" && <MotionStep initial={motionAnswer} onDone={advanceFromMotion} />}
           {step === "team" && (
             <TeamStep
+              initialRoles={initialTeamRoles}
               onDone={() => {
                 setDone((prev) => ({ ...prev, team: true }));
+                if (goBackOrElse()) return;
                 setStep("customer");
               }}
             />
           )}
           {step === "customer" && (
-            <CustomerStep initialIndustry={scrapedIndustry} onDone={advanceFromCustomer} />
+            <CustomerStep initial={initialCustomer} scrapedIndustry={scrapedIndustry} onDone={advanceFromCustomer} />
           )}
-          {step === "metrics" && <MetricsStep onDone={advanceFromMetrics} />}
+          {step === "metrics" && (
+            <MetricsStep
+              initialSources={initialLeadSources}
+              initialStakeholderCount={initialDealShape.stakeholderCount}
+              initialProcurementInvolved={initialDealShape.procurementInvolved}
+              onDone={advanceFromMetrics}
+            />
+          )}
           {step === "deal-shape" && (
             <DealShapeStep
+              initial={initialDealShape}
               onDone={() => {
                 setDone((prev) => ({ ...prev, "deal-shape": true }));
+                if (goBackOrElse()) return;
                 finish();
               }}
             />
@@ -620,9 +724,17 @@ function SelectField({
   );
 }
 
-function RoleStep({ onDone }: { onDone: () => void }) {
-  const [role, setRole] = useState("");
-  const [title, setTitle] = useState("");
+function RoleStep({
+  initialRole,
+  initialTitle,
+  onDone,
+}: {
+  initialRole: string;
+  initialTitle: string;
+  onDone: () => void;
+}) {
+  const [role, setRole] = useState(initialRole);
+  const [title, setTitle] = useState(initialTitle);
   const [isPending, startTransition] = useTransition();
   const complete = role !== "" && (role !== "other" || title.trim() !== "");
 
@@ -669,8 +781,8 @@ function RoleStep({ onDone }: { onDone: () => void }) {
   );
 }
 
-function ExperienceStep({ onDone }: { onDone: () => void }) {
-  const [experience, setExperience] = useState("");
+function ExperienceStep({ initialExperience, onDone }: { initialExperience: string; onDone: () => void }) {
+  const [experience, setExperience] = useState(initialExperience);
   const [isPending, startTransition] = useTransition();
 
   function confirm() {
@@ -704,8 +816,14 @@ function ExperienceStep({ onDone }: { onDone: () => void }) {
   );
 }
 
-function MotionStep({ onDone }: { onDone: (answer: "yes" | "no") => void }) {
-  const [answer, setAnswer] = useState<"yes" | "no" | "">("");
+function MotionStep({
+  initial,
+  onDone,
+}: {
+  initial: "yes" | "no" | null;
+  onDone: (answer: "yes" | "no") => void;
+}) {
+  const [answer, setAnswer] = useState<"yes" | "no" | "">(initial ?? "");
   const [isPending, startTransition] = useTransition();
 
   function confirm() {
@@ -739,9 +857,27 @@ function MotionStep({ onDone }: { onDone: (answer: "yes" | "no") => void }) {
   );
 }
 
-function TeamStep({ onDone }: { onDone: () => void }) {
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  const [customRoles, setCustomRoles] = useState<{ value: string; label: string }[]>([]);
+// Best-effort reconstruction of a custom role's display label from its saved
+// slug — saveTeamRoles only persists {role, count} pairs, not the original
+// label, so a role typed in on an earlier pass and now being edited shows a
+// title-cased guess rather than truly nothing. Same "propose, don't assume"
+// spirit as everything else here: wrong is retypeable, blank is worse.
+function labelFromSlug(slug: string): string {
+  return slug
+    .split("_")
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+function TeamStep({ initialRoles, onDone }: { initialRoles: TeamRoleEntry[]; onDone: () => void }) {
+  const initialCustomRoles = initialRoles
+    .filter((r) => !TEAM_ROLES.some((t) => t.value === r.role))
+    .map((r) => ({ value: r.role, label: labelFromSlug(r.role) }));
+  const [counts, setCounts] = useState<Record<string, number>>(
+    Object.fromEntries(initialRoles.map((r) => [r.role, r.count]))
+  );
+  const [customRoles, setCustomRoles] = useState<{ value: string; label: string }[]>(initialCustomRoles);
   const [newRoleName, setNewRoleName] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -947,13 +1083,33 @@ function FunnelInfographic({ blended }: { blended: Blended }) {
   );
 }
 
-function MetricsStep({ onDone }: { onDone: (hasData: boolean) => void }) {
-  const [enabled, setEnabled] = useState<Record<string, boolean>>({});
-  const [rows, setRows] = useState<Record<string, Omit<SourceInput, "source">>>({});
-  const [customSources, setCustomSources] = useState<{ value: string; label: string }[]>([]);
+function MetricsStep({
+  initialSources,
+  initialStakeholderCount,
+  initialProcurementInvolved,
+  onDone,
+}: {
+  initialSources: SourceInput[];
+  initialStakeholderCount: string;
+  initialProcurementInvolved: "yes" | "no" | "";
+  onDone: (hasData: boolean) => void;
+}) {
+  const [enabled, setEnabled] = useState<Record<string, boolean>>(
+    Object.fromEntries(initialSources.map((s) => [s.source, true]))
+  );
+  const [rows, setRows] = useState<Record<string, Omit<SourceInput, "source">>>(
+    Object.fromEntries(
+      initialSources.map(({ source, ...rest }) => [source, rest])
+    )
+  );
+  const [customSources, setCustomSources] = useState<{ value: string; label: string }[]>(
+    initialSources
+      .filter((s) => !LEAD_SOURCES.some((l) => l.value === s.source))
+      .map((s) => ({ value: s.source, label: labelFromSlug(s.source) }))
+  );
   const [newSourceName, setNewSourceName] = useState("");
-  const [stakeholderCount, setStakeholderCount] = useState("");
-  const [procurementInvolved, setProcurementInvolved] = useState<"yes" | "no" | "">("");
+  const [stakeholderCount, setStakeholderCount] = useState(initialStakeholderCount);
+  const [procurementInvolved, setProcurementInvolved] = useState<"yes" | "no" | "">(initialProcurementInvolved);
   const [isPending, startTransition] = useTransition();
 
   const allSources = [...LEAD_SOURCES, ...customSources];
@@ -1178,11 +1334,22 @@ function MetricsStep({ onDone }: { onDone: (hasData: boolean) => void }) {
   );
 }
 
-function CustomerStep({ initialIndustry, onDone }: { initialIndustry: string; onDone: () => void }) {
-  const [industry, setIndustry] = useState(initialIndustry);
-  const [companySize, setCompanySize] = useState("");
-  const [geography, setGeography] = useState("");
-  const [buyerTitle, setBuyerTitle] = useState("");
+function CustomerStep({
+  initial,
+  scrapedIndustry,
+  onDone,
+}: {
+  initial: CustomerFields;
+  scrapedIndustry: string;
+  onDone: () => void;
+}) {
+  // The real, reviewed answer always wins over the scrape's raw guess —
+  // scrapedIndustry only fills the gap the first time through, before any
+  // real answer exists yet.
+  const [industry, setIndustry] = useState(initial.industry || scrapedIndustry);
+  const [companySize, setCompanySize] = useState(initial.companySize);
+  const [geography, setGeography] = useState(initial.geography);
+  const [buyerTitle, setBuyerTitle] = useState(initial.buyerTitle);
   const [isPending, startTransition] = useTransition();
 
   const complete = industry.trim() !== "" && companySize !== "" && buyerTitle !== "";
@@ -1244,11 +1411,11 @@ function CustomerStep({ initialIndustry, onDone }: { initialIndustry: string; on
   );
 }
 
-function DealShapeStep({ onDone }: { onDone: () => void }) {
-  const [acv, setAcv] = useState("");
-  const [cycleLengthDays, setCycleLengthDays] = useState("");
-  const [stakeholderCount, setStakeholderCount] = useState("");
-  const [procurementInvolved, setProcurementInvolved] = useState<"yes" | "no" | "">("");
+function DealShapeStep({ initial, onDone }: { initial: DealShapeFields; onDone: () => void }) {
+  const [acv, setAcv] = useState(initial.acv);
+  const [cycleLengthDays, setCycleLengthDays] = useState(initial.cycleLengthDays);
+  const [stakeholderCount, setStakeholderCount] = useState(initial.stakeholderCount);
+  const [procurementInvolved, setProcurementInvolved] = useState<"yes" | "no" | "">(initial.procurementInvolved);
   const [isPending, startTransition] = useTransition();
 
   const complete = acv !== "" && cycleLengthDays !== "" && stakeholderCount !== "" && procurementInvolved !== "";

@@ -175,3 +175,12 @@ export function InfoIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function PencilIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M14.5 5.5l4 4L7 21H3v-4z" />
+      <path d="M13 7l4 4" />
+    </svg>
+  );
+}
