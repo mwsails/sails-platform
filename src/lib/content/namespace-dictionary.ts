@@ -393,13 +393,20 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
     }),
   },
 
-  // Net-new, additive — no v1 exercise reads/writes org.brand.* yet. Colors
-  // and fonts are proposed by the scraper reading the org's stylesheet
-  // (mirrors the METADATA_FIELD_SOURCES pattern already used for
-  // brand_primary_color/brand_logo_url on company_scrape), logo needs file
-  // upload + storage this app doesn't have yet (repo-open §8). Every
-  // Enablement-generated asset renders in these tokens; SAILS appears in
-  // the footer only, per the design handoff's own rule.
+  // Written by the Brand onboarding screen (src/app/onboarding, not an
+  // exercise) via scrapeBrandKit (src/lib/scrape/firecrawl.ts) — see that
+  // function's doc comment for exactly what's genuinely proposable
+  // (logo/color_primary have a real signal via page metadata and inline
+  // hex frequency; color_secondary/color_accent are a weaker frequency
+  // guess; font_heading/font_body have no reliable signal at all and are
+  // always left blank for manual entry). logo is a URL string, not an
+  // uploaded file — this app has no file storage, so the scraper's
+  // already-hosted og:image/favicon URL is used as-is rather than fetching
+  // and re-storing the asset. Every Enablement-generated asset is meant to
+  // render in these tokens eventually; SAILS appears in the footer only,
+  // per the design handoff's own rule. Optional end to end — none of these
+  // six fields are required to complete onboarding, same "presence, not
+  // value" completion check as team.current_roles.
   org: {
     brand: obj({
       logo: scalar,
