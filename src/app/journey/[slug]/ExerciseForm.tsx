@@ -404,8 +404,14 @@ function RankField({
     if (step.source === "fixed") return step.items;
     const raw = context[step.context_key];
     const arr = Array.isArray(raw) ? raw : [];
+    // Every array-of-objects context field carries a system `id` the write
+    // path injects (see store.ts) — use that as the rank value, not the
+    // array's current position. An index would silently go stale the
+    // moment the underlying list is edited or reordered after this rank is
+    // saved, since a stored "1" would then point at whatever item happens
+    // to sit at position 1 later, not the item actually ranked there.
     return arr.map((item, i) => ({
-      value: String(i),
+      value: typeof item === "object" && item && "id" in item ? String((item as { id: unknown }).id) : String(i),
       label: typeof item === "object" && item && "title" in item ? String((item as { title: unknown }).title) : JSON.stringify(item),
     }));
   }, [step, context]);
