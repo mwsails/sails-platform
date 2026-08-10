@@ -34,7 +34,7 @@ const BUSINESS_FIELDS = [
  * request mechanics.
  */
 export async function scrapeBusiness(url: string): Promise<
-  | { content: Record<string, string>; brand: BrandKit }
+  | { content: Record<string, string>; brand: BrandKit; targetIndustry: string }
   | { error: string }
 > {
   try {
@@ -51,8 +51,11 @@ export async function scrapeBusiness(url: string): Promise<
       return { error: "That doesn't look like a valid URL." };
     }
 
-    const { business, brand } = await scrapeBusinessProfile({ url: normalized, fields: BUSINESS_FIELDS });
-    return { content: { ...business, domain: normalized }, brand };
+    const { business, brand, targetIndustry } = await scrapeBusinessProfile({
+      url: normalized,
+      fields: BUSINESS_FIELDS,
+    });
+    return { content: { ...business, domain: normalized }, brand, targetIndustry };
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) };
   }
@@ -74,8 +77,14 @@ export async function saveBusiness(fields: Record<string, string>) {
   revalidatePath("/onboarding");
 }
 
-/** You bucket, step 2 — respondent.role. User-scoped (USER_SCOPED_NAMESPACES), so this rep's answer never leaks to another rep at the same org. */
-export async function saveRole(role: string) {
+/**
+ * You bucket, step 2 — respondent.role. User-scoped (USER_SCOPED_NAMESPACES),
+ * so this rep's answer never leaks to another rep at the same org. title is
+ * only meaningful when role is "other" — always write it (blank otherwise)
+ * so a redo that switches away from "other" doesn't leave a stale title
+ * from the previous answer sitting in context.
+ */
+export async function saveRole(role: string, title: string) {
   const supabase = await createClient();
   const user = await getCurrentUser(supabase);
   if (!user) throw new Error("not authenticated");
@@ -84,8 +93,11 @@ export async function saveRole(role: string) {
     supabase,
     user.orgId,
     user.id,
-    [{ from: "answers.role", to: "respondent.role", mode: "replace" }],
-    { role },
+    [
+      { from: "answers.role", to: "respondent.role", mode: "replace" },
+      { from: "answers.title", to: "respondent.title", mode: "replace" },
+    ],
+    { role, title: role === "other" ? title.trim() : "" },
     "manual",
     null
   );
