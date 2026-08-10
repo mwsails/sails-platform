@@ -49,9 +49,10 @@ export default async function JourneyPage() {
       "respondent.role",
       "respondent.sales_experience",
       "team.current_roles",
-      "metrics.lead_sources",
       "icp.segments",
       "company.buyer_title",
+      "metrics.lead_sources",
+      "metrics.deferred",
       "org.brand.logo",
     ]),
   ]);
@@ -75,10 +76,11 @@ export default async function JourneyPage() {
     context["respondent.sales_experience"] !== "" &&
     (hasExistingMotion === "yes" || hasExistingMotion === "no") &&
     (hasExistingMotion === "no" || "team.current_roles" in context) &&
-    (hasExistingMotion === "no" ||
-      (Array.isArray(context["metrics.lead_sources"]) && context["metrics.lead_sources"].length > 0)) &&
     icpSegments.length > 0 &&
     typeof context["company.buyer_title"] === "string" &&
+    (hasExistingMotion === "no" ||
+      (Array.isArray(context["metrics.lead_sources"]) && context["metrics.lead_sources"].length > 0) ||
+      context["metrics.deferred"] === "yes") &&
     typeof context["company.recommended_tier"] === "string" &&
     context["company.recommended_tier"] !== "" &&
     "org.brand.logo" in context;

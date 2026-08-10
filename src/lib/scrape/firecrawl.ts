@@ -66,9 +66,20 @@ const NEAR_BLACK_OR_WHITE = new Set([
   "#333333",
 ]);
 
+export type BrandKit = {
+  logo: string;
+  color_primary: string;
+  color_secondary: string;
+  color_accent: string;
+  font_heading: string;
+  font_body: string;
+};
+
 /**
  * Best-effort brand-kit proposal from a page's HTML + Firecrawl metadata —
- * deliberately not the same contract as scrapeAndExtract above. That
+ * a pure function, not a fetch, so it can run against the same response
+ * scrapeBusinessProfile below already has, no second API call needed.
+ * Deliberately not the same contract as scrapeAndExtract above. That
  * function does LLM-structured extraction of text Firecrawl's `json`
  * format reads from rendered content; there's no equivalent for real hex
  * colors or font-family names, since those live in CSS, not page copy, and
@@ -95,49 +106,7 @@ const NEAR_BLACK_OR_WHITE = new Set([
  *   signal for these — proposing a fake guess would violate "propose,
  *   don't assume" harder than leaving an honest blank to fill in.
  */
-export async function scrapeBrandKit(url: string): Promise<{
-  logo: string;
-  color_primary: string;
-  color_secondary: string;
-  color_accent: string;
-  font_heading: string;
-  font_body: string;
-}> {
-  const apiKey = process.env.FIRECRAWL_API_KEY;
-  if (!apiKey) {
-    throw new Error("Scraping isn't configured yet — ask an admin to set FIRECRAWL_API_KEY.");
-  }
-
-  let res: Response;
-  try {
-    res = await fetch("https://api.firecrawl.dev/v2/scrape", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ url, formats: [{ type: "html" }] }),
-    });
-  } catch {
-    throw new Error("Couldn't reach the scraper — check the URL and try again, or fill this in manually.");
-  }
-
-  if (!res.ok) {
-    throw new Error(
-      res.status === 401 || res.status === 403
-        ? "Scraping isn't configured correctly — ask an admin to check the API key."
-        : "Couldn't scrape that page — check the URL and try again, or fill this in manually."
-    );
-  }
-
-  const body = (await res.json()) as {
-    success?: boolean;
-    data?: { html?: string; metadata?: Record<string, unknown> };
-  };
-  if (!body.success || !body.data) {
-    throw new Error("Couldn't read that page — try a different URL or fill this in manually.");
-  }
-
-  const html = body.data.html ?? "";
-  const metadata = body.data.metadata ?? {};
-
+export function extractBrandKit(html: string, metadata: Record<string, unknown>): BrandKit {
   const logo =
     (typeof metadata.ogImage === "string" && metadata.ogImage) ||
     (typeof metadata.favicon === "string" && metadata.favicon) ||
@@ -165,4 +134,65 @@ export async function scrapeBrandKit(url: string): Promise<{
     font_heading: "",
     font_body: "",
   };
+}
+
+/**
+ * Business bucket's single scrape — one Firecrawl call requesting both the
+ * `json` (LLM text-field extraction, same as scrapeAndExtract) and `html`
+ * (for extractBrandKit) formats together, confirmed live that Firecrawl
+ * returns both from one request rather than needing two round trips (and
+ * two credits) for what the Business screen shows as a single review card.
+ */
+export async function scrapeBusinessProfile(opts: {
+  url: string;
+  fields: { name: string; label: string }[];
+}): Promise<{ business: Record<string, string>; brand: BrandKit }> {
+  const apiKey = process.env.FIRECRAWL_API_KEY;
+  if (!apiKey) {
+    throw new Error("Scraping isn't configured yet — ask an admin to set FIRECRAWL_API_KEY.");
+  }
+
+  const schema = {
+    type: "object",
+    properties: Object.fromEntries(opts.fields.map((f) => [f.name, { type: "string", description: f.label }])),
+    required: opts.fields.map((f) => f.name),
+  };
+
+  let res: Response;
+  try {
+    res = await fetch("https://api.firecrawl.dev/v2/scrape", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ url: opts.url, formats: [{ type: "json", schema }, { type: "html" }] }),
+    });
+  } catch {
+    throw new Error("Couldn't reach the scraper — check the URL and try again, or fill this in manually.");
+  }
+
+  if (!res.ok) {
+    throw new Error(
+      res.status === 401 || res.status === 403
+        ? "Scraping isn't configured correctly — ask an admin to check the API key."
+        : "Couldn't scrape that page — check the URL and try again, or fill this in manually."
+    );
+  }
+
+  const body = (await res.json()) as {
+    success?: boolean;
+    data?: { json?: Record<string, unknown>; html?: string; metadata?: Record<string, unknown> };
+  };
+  if (!body.success || !body.data?.json) {
+    throw new Error("Couldn't extract anything useful from that page — try a different URL or fill this in manually.");
+  }
+
+  const raw = body.data.json;
+  const business: Record<string, string> = {};
+  for (const f of opts.fields) {
+    const v = raw[f.name];
+    business[f.name] = typeof v === "string" ? v : "";
+  }
+
+  const brand = extractBrandKit(body.data.html ?? "", body.data.metadata ?? {});
+
+  return { business, brand };
 }
