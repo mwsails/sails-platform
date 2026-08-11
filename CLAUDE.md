@@ -530,6 +530,81 @@ formats.
 Not done: none of the deferred export work remains — DOCX (Playbook), PDF,
 and PowerPoint (one-pager) are all live.
 
+**Curriculum content — grounded in the real SAILS Playbook, not invented**
+(`outbound-sequence-builder` exercise, `outbound-system` module). Several
+Playbook sections (Outbound System, Intro Call Framework, Demo Framework,
+Closing Motion, Meeting Cadence and KPIs, Team) have always been genuinely
+blank — no exercise has ever written to their namespaces, a real content
+gap rather than a wiring bug like Discovery Framework's fix above. The
+source material for this content already exists: dozens of proprietary
+SAILS methodology documents at `~/Documents/Claude/Projects/SAILS/*.docx`
+(same folder `objection-framework.yml` and `discovery-focus-builder.yml`
+were already grounded in). Every new curriculum exercise must be built
+from those real documents, never invented generically — read them with
+`textutil -convert txt -stdout <file>.docx` (the Read tool can't parse
+`.docx` binaries).
+
+`outbound-sequence-builder` is grounded in `SAILS_Outbound_v2.docx`: the
+35-day/13-touch cadence structure and the 5-sentence POV email framework
+(S1 Trigger, S2 Current State, S3 Ideal State, S4 CTA, S5 optional P.S.)
+are taught via `teach`/`example` content, not stored per-org — same
+"the framework is generic, only what it operates on is personalized"
+distinction `SAILS_Personalization_Map_v1.docx` itself draws. What's
+genuinely org-specific is the org's own 5 POV email touches, so that's
+the one `input_table` (`row_mode: "fixed"`) the exercise captures, plus
+a `multiple: true` `select` for channels and a dynamic `input_table` for
+signal-to-angle personalization, informed by the doc's 5 real buying
+signals (funding announcement, new VP Sales/CRO/Head of Revenue hire, 3+
+open AE/BDR postings, founder-led LinkedIn content, competitor
+displacement).
+
+`outbound.sequences` was simplified before anything wrote to it — the
+original shape sketched a full per-touch structure (day/channel/angle,
+`body_slots` with all five S1-S5 sentence slots, call scripts) nothing
+had ever produced. A fixed-row `input_table` naturally outputs one flat
+row per touch, not that nested shape, so it was flattened to match —
+same tradeoff already applied to `icp.segments`/`process.discovery_script`.
+The namespace contract doc
+(`~/Documents/Claude/Projects/SAILS/SAILS_Platform_Context_Namespaces_v1.md`)
+was updated in the same change, keeping the superseded shape as a
+commented record in case the full 13-touch cadence becomes real per-org
+data later.
+
+Hit a real bug during live verification, not caught by `content:validate`
+or `tsc`: the exercise's `writes` mapping used
+`from: answers.touches[].row` for the two `input_table` steps, matching
+the `answers.<stepId>[].<field>` pattern documented in `store.ts` — but
+each row object has no `.row` property, so `resolveAnswerValue` mapped
+every item to `undefined`, writing arrays of nulls. `discovery-focus-
+builder.yml` already has the right pattern (`from: answers.focus_table`,
+no `[]` or field suffix, since an `input_table` step's answer *is* the
+array of row objects) — fixed by matching it exactly. Also gave Playbook
+section 6 (previously the generic JSON-dump fallback) a bespoke template,
+same call as Discovery Framework's earlier fix: render touches as
+labeled cards (subject line, S1-S4), channels as a bullet list, and the
+personalization map as signal-to-angle pairs.
+
+Verified live end to end: seeded a test org, completed the exercise
+(channels, all 5 touches, 2 personalization rows, list strategy),
+confirmed all four namespace writes persisted correctly via direct DB
+query — first with the `answers.touches[].row` bug reproducing the null
+arrays, then clean after the fix — and confirmed the new Playbook section
+6 template renders every field correctly from the same seeded data.
+Also surfaced (and worked around, not an app bug) a test-tooling quirk:
+the browser automation's `form_input` on a React-controlled multi-select
+checkbox set `.checked` without the click ever registering in React
+state; a real `left_click` on the checkbox worked correctly.
+
+Not done: Intro Call Framework, Demo Framework, Closing Motion, Meeting
+Cadence and KPIs, and Team modules remain genuinely empty. Source docs
+identified for the first three (`SAILS_Intro_Call_Framework_v1.docx`,
+`SAILS_Demo_Framework_v1.docx`, `SAILS_Field_Techniques_v1.docx`);
+Meeting Cadence/KPIs and Team's source docs not yet confirmed
+(candidates: `SAILS_Coaching_v1.docx`,
+`SuperSonic_Sales_Leader_Coaching_Playbook.docx`, or the
+`SAILS_KPI_Tracker*.xlsx` spreadsheets). Each should ship as its own
+branch/PR, same incremental pattern as every other exercise this session.
+
 ## Hosting (once past Phase 0)
 
 Vercel, not Netlify — this is a Next.js App Router app with server-rendered
