@@ -1,9 +1,10 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-org";
 import { loadPlaybookSections } from "@/lib/playbook/generate";
 import { SectionCard } from "./SectionCard";
-import { DocumentIcon, DownloadIcon } from "@/components/icons";
+import { ArrowRightIcon, DocumentIcon, DownloadIcon } from "@/components/icons";
 
 export default async function PlaybookPage() {
   const supabase = await createClient();
@@ -15,7 +16,14 @@ export default async function PlaybookPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
-      <div className="flex items-start justify-between gap-4">
+      <Link
+        href="/vp-of-sales"
+        className="inline-flex items-center gap-1 text-sm text-muted transition-colors duration-150 hover:text-[var(--sails-blue)]"
+      >
+        <ArrowRightIcon className="h-3.5 w-3.5 rotate-180" />
+        VP of Sales
+      </Link>
+      <div className="mt-4 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-[var(--foreground)]">Playbook</h1>
           <p className="mt-1 text-sm text-muted">
@@ -25,7 +33,7 @@ export default async function PlaybookPage() {
         </div>
         {readyCount > 0 && (
           <a
-            href="/playbook/export"
+            href="/vp-of-sales/playbook/export"
             className="mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--sails-border)] bg-[var(--background)] px-3.5 py-2 text-xs font-medium text-[var(--foreground)] shadow-[var(--shadow-soft)] transition-colors duration-150 hover:bg-[var(--sails-gray)]"
           >
             <DownloadIcon className="h-3.5 w-3.5" />
@@ -53,8 +61,8 @@ export default async function PlaybookPage() {
         <div className="mt-6 flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--sails-border)] px-6 py-16 text-center">
           <DocumentIcon className="h-8 w-8 text-faint" />
           <p className="text-sm text-muted">
-            Complete a few exercises on your Journey, then come back to generate your first
-            section.
+            Complete a few exercises on your CRO&apos;s curriculum, then come back to generate
+            your first section.
           </p>
         </div>
       )}

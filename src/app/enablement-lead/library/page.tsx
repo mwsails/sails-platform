@@ -32,7 +32,14 @@ export default async function LibraryPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
-      <div className="flex items-start justify-between gap-4">
+      <Link
+        href="/enablement-lead"
+        className="inline-flex items-center gap-1 text-sm text-muted transition-colors duration-150 hover:text-[var(--sails-blue)]"
+      >
+        <ChevronRightIcon className="h-3.5 w-3.5 rotate-180" />
+        Enablement Lead
+      </Link>
+      <div className="mt-4 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-[var(--foreground)]">Library</h1>
           <p className="mt-1 text-sm text-muted">
@@ -123,14 +130,14 @@ export default async function LibraryPage() {
                   theme-aware tokens like everywhere else in the UI. */}
               <div className="flex items-center gap-2 border-t border-[var(--sails-border)] bg-[var(--background)] px-6 py-3">
                 <a
-                  href={`/library/${p.id}/export/pdf`}
+                  href={`/enablement-lead/library/${p.id}/export/pdf`}
                   className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-[var(--sails-blue)] transition-colors duration-150 hover:bg-[var(--sails-blue-light)]"
                 >
                   <DownloadIcon className="h-3.5 w-3.5" />
                   Export PDF
                 </a>
                 <a
-                  href={`/library/${p.id}/export/pptx`}
+                  href={`/enablement-lead/library/${p.id}/export/pptx`}
                   className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-[var(--sails-blue)] transition-colors duration-150 hover:bg-[var(--sails-blue-light)]"
                 >
                   <DownloadIcon className="h-3.5 w-3.5" />

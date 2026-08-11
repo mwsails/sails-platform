@@ -240,9 +240,10 @@ export default async function JourneyPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
-      <h1 className="text-2xl font-semibold text-[var(--foreground)]">Journey</h1>
+      <h1 className="text-2xl font-semibold text-[var(--foreground)]">Your CRO</h1>
       <p className="mt-1 text-sm text-muted">
-        Complete exercises in order — each one builds on what the last one wrote to your profile.
+        Assesses your GTM foundation and tells you what to fix first. Complete exercises in order
+        below — each one builds on what the last one wrote to your data.
       </p>
 
       {totalCount > 0 && (
@@ -269,7 +270,7 @@ export default async function JourneyPage() {
             Recommended for you: <strong>{tracks.find((t) => t.data.slug === tier)?.data.title ?? tier}</strong>.
             Change this anytime on your{" "}
             <Link href="/profile" className="text-[var(--sails-blue)] hover:underline">
-              Profile
+              Your Data
             </Link>{" "}
             page (<code>company.recommended_tier</code>).
           </p>

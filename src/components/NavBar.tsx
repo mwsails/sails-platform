@@ -2,12 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CompassIcon, DocumentIcon, UsersIcon, BuildingIcon } from "./icons";
+import { TargetIcon, LightbulbIcon, BuildingIcon, UsersIcon } from "./icons";
 
+// Organized around the three named agents (marketing site's own framing,
+// always in this order: CRO -> VP of Sales -> Enablement Lead), not generic
+// page names — Playbook lives under VP of Sales and Library under
+// Enablement Lead, reachable from each agent's own hub page rather than as
+// top-level nav items. /journey is CRO's home (diagnosis + the exercise
+// curriculum that feeds it) — kept as the underlying route since it's
+// referenced by auth/onboarding handoff logic in several places, just
+// relabeled here to match the agent it represents.
 const NAV_ITEMS = [
-  { href: "/journey", label: "Journey", icon: CompassIcon },
-  { href: "/playbook", label: "Playbook", icon: DocumentIcon },
-  { href: "/library", label: "Library", icon: BuildingIcon },
+  { href: "/journey", label: "CRO", icon: TargetIcon },
+  { href: "/vp-of-sales", label: "VP of Sales", icon: LightbulbIcon },
+  { href: "/enablement-lead", label: "Enablement Lead", icon: BuildingIcon },
   { href: "/profile", label: "Profile", icon: UsersIcon },
 ];
 

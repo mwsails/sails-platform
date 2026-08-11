@@ -11,7 +11,7 @@ export async function regenerateSection(sectionSlug: string) {
   if (!user) throw new Error("not authenticated");
 
   await generatePlaybookSection(supabase, user.orgId, sectionSlug);
-  revalidatePath("/playbook");
+  revalidatePath("/vp-of-sales/playbook");
 }
 
 export async function approveSection(sectionSlug: string) {
@@ -26,5 +26,5 @@ export async function approveSection(sectionSlug: string) {
     .eq("section_slug", sectionSlug);
   if (error) throw error;
 
-  revalidatePath("/playbook");
+  revalidatePath("/vp-of-sales/playbook");
 }
