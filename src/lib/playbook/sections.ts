@@ -54,6 +54,15 @@ type Segment = { segment_label?: string; industry?: string; size_range?: string;
 type Persona = { title?: string; role_in_deal?: string; cares_about?: string; day_to_day_pains?: string };
 type ImpactArea = { area_name?: string; who_feels_it?: string; metric_affected?: string; cost_if_ignored?: string };
 type DiscoveryRow = { row_id?: string; user_questions?: string };
+type OutboundTouch = {
+  row_id?: string;
+  subject_line?: string;
+  trigger?: string;
+  current_state?: string;
+  ideal_state?: string;
+  cta?: string;
+};
+type PersonalizationSignal = { signal?: string; angle?: string };
 
 const FOCUS_LABELS: Record<string, string> = {
   facts: "Facts",
@@ -63,6 +72,15 @@ const FOCUS_LABELS: Record<string, string> = {
   stakes: "Stakes",
 };
 const FOCUS_ORDER = ["facts", "objectives", "complications", "uncovering_impact", "stakes"];
+
+const TOUCH_LABELS: Record<string, string> = {
+  touch_1: "Touch 1 — Establish Your POV (Day 1)",
+  touch_2: "Touch 2 — Add Depth (Day 5)",
+  touch_3: "Touch 3 — Social Proof (Day 12)",
+  touch_4: "Touch 4 — Lower the Barrier (Day 22)",
+  touch_5: "Touch 5 — Permission to Exit (Day 30)",
+};
+const TOUCH_ORDER = ["touch_1", "touch_2", "touch_3", "touch_4", "touch_5"];
 
 export const PLAYBOOK_SECTIONS: SectionDef[] = [
   {
@@ -154,8 +172,47 @@ export const PLAYBOOK_SECTIONS: SectionDef[] = [
   {
     slug: "outbound-system",
     title: "6. Lead Sources and Outbound System",
-    reads: ["outbound.sequences", "outbound.channels", "outbound.personalization_map"],
-    render: (ctx) => renderGeneric(ctx, ["outbound.sequences", "outbound.channels", "outbound.personalization_map"]),
+    reads: ["outbound.sequences", "outbound.channels", "outbound.personalization_map", "outbound.list_strategy"],
+    render: (ctx) => {
+      const touches = (ctx["outbound.sequences"] as OutboundTouch[]) ?? [];
+      const rest = renderGeneric(ctx, ["outbound.list_strategy"]);
+      if (touches.length === 0) {
+        const fallback = renderGeneric(ctx, ["outbound.channels", "outbound.personalization_map"]);
+        return [fallback, rest].filter(Boolean).join("\n\n");
+      }
+
+      const channels = ctx["outbound.channels"] as string[] | undefined;
+      const channelsText =
+        channels && channels.length > 0 ? `## Channels\n${channels.map((c) => `- ${c}`).join("\n")}` : "";
+
+      const byRowId = new Map(touches.map((t) => [t.row_id, t]));
+      const touchesText = TOUCH_ORDER.filter((id) => byRowId.has(id))
+        .map((id) => {
+          const t = byRowId.get(id)!;
+          return [
+            `## ${TOUCH_LABELS[id]}`,
+            t.subject_line ? bullet("Subject line", t.subject_line) : "",
+            t.trigger ? bullet("Trigger", t.trigger) : "",
+            t.current_state ? bullet("Current state", t.current_state) : "",
+            t.ideal_state ? bullet("Ideal state", t.ideal_state) : "",
+            t.cta ? bullet("CTA", t.cta) : "",
+          ]
+            .filter(Boolean)
+            .join("\n");
+        })
+        .join("\n\n");
+
+      const signals = (ctx["outbound.personalization_map"] as PersonalizationSignal[]) ?? [];
+      const signalsText =
+        signals.length > 0
+          ? `## Signal-Based Personalization\n${signals
+              .filter((s) => s.signal)
+              .map((s) => bullet(s.signal!, s.angle ?? "—"))
+              .join("\n")}`
+          : "";
+
+      return [channelsText, touchesText, signalsText, rest].filter(Boolean).join("\n\n");
+    },
   },
   {
     slug: "intro-call-framework",

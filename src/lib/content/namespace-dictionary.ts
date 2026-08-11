@@ -169,30 +169,28 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
     no_logo_pitch: scalar,
   },
 
+  // Was a deeper shape (named sequences, each containing a touches array,
+  // each touch nesting a body_slots object) before anything wrote to it —
+  // simplified once a real exercise (outbound-sequence-builder) needed to
+  // actually produce it. A fixed-row input_table naturally outputs a flat
+  // array of row objects, not sequence-of-touches-of-slots; the SAILS
+  // 35-day/13-touch cadence itself (day/channel/angle/scripts) is universal
+  // methodology taught via teach/example content, not per-org data — same
+  // "the framework is generic, only what it operates on is personalized"
+  // distinction the SAILS Personalization Map doc itself draws. What's
+  // genuinely org-specific and worth capturing is the org's own 5-touch POV
+  // email content (the S1-S5 sentence slots), so that's what sequences
+  // stores now — one flat row per email touch, same flattening tradeoff as
+  // icp.segments/process.discovery_script.
   outbound: {
     channels: arrayOfScalar,
     sequences: arrayOf({
-      sequence_name: scalar,
-      total_touches: scalar,
-      length_days: scalar,
-      touches: arrayOf({
-        touch_number: scalar,
-        day_offset: scalar,
-        channel: scalar,
-        angle_name: scalar,
-        goal: scalar,
-        subject_line_template: scalar,
-        cta_type: scalar,
-        body_slots: obj({
-          trigger: scalar,
-          current_state: scalar,
-          ideal_state: scalar,
-          cta: scalar,
-          ps: scalar,
-        }),
-        if_answered_script: scalar,
-        if_voicemail_script: scalar,
-      }),
+      touch_id: scalar, // "touch_1".."touch_5" - the 5 POV email touches, not the full 13-touch cadence
+      subject_line: scalar,
+      trigger: scalar,
+      current_state: scalar,
+      ideal_state: scalar,
+      cta: scalar,
     }),
     personalization_map: arrayOf({ signal: scalar, angle: scalar }),
     list_strategy: scalar,

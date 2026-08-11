@@ -1,0 +1,105 @@
+# Grounded directly in the real SAILS Playbook (Outbound Prospecting
+# module, SAILS_Outbound_v2.docx) — the 35-day, 13-touch cadence
+# (call-heavy days 1-14, email-heavy days 17-35) and the 5-sentence POV
+# email framework (S1 Trigger, S2 Current State, S3 Ideal State, S4 CTA,
+# S5 optional P.S.) are SAILS' own IP, not invented for this exercise.
+#
+# Scope decision: the cadence itself (day/channel/voicemail scripts) is
+# universal methodology, taught via teach/example content below, not
+# captured as per-org data — same distinction the SAILS Personalization Map
+# doc draws between generic frameworks (LASER, FOCUS, SPEAR) and the
+# content those frameworks operate on. What genuinely varies by org is the
+# 5 POV email touches themselves, so that's the one input_table here — not
+# a literal 13-row encoding of the whole cadence. See the namespace
+# dictionary's outbound.sequences comment for why the shape is flat, not
+# the deeper sequence-of-touches-of-slots structure originally sketched
+# before anything wrote to it.
+slug: outbound-sequence-builder
+schema_version: 1
+title: "Build Your Outbound Sequence"
+module: outbound-system
+tracks: [smb, mid-market]
+time_estimate: 30m
+intent: training
+
+reads: [company.name, icp.segments, pain_tree.impact_areas, messaging.proof_points]
+requires: [icp.segments]
+
+writes:
+  - from: answers.channels
+    to: outbound.channels
+    mode: replace
+  - from: answers.touches
+    to: outbound.sequences
+    mode: replace
+  - from: answers.signals
+    to: outbound.personalization_map
+    mode: replace
+  - from: answers.list_strategy
+    to: outbound.list_strategy
+    mode: replace
+
+steps:
+  - type: teach
+    body: |
+      SAILS runs outbound as 13 touches over 35 days, not a random string
+      of follow-ups. Days 1 through 14 are call-heavy, your name is
+      newest and the signal is hottest. Days 17 through 35 shift to
+      email-heavy, persistence without noise. Every touch changes the
+      angle. A prospect who only saw Touch 7 should still understand
+      exactly why you are reaching out.
+
+  - type: example
+    body: |
+      The 5 emails all use the same 5-sentence structure but a different
+      angle each time: Trigger (why now), Current State (their pain, no
+      "we" language), Ideal State (one line of social proof, no product
+      mention), a low-pressure CTA like "Worth a conversation?", and an
+      optional P.S. Touch 1 establishes your POV. Touch 4 asks a closed
+      either/or timing question. Touch 5 gives them a clean, explicit
+      exit — 15-20% of exit emails get a response, more than most of the
+      earlier touches.
+
+  - id: channels
+    type: select
+    label: "Which channels will you actually run in your sequence?"
+    multiple: true
+    options:
+      - { value: call, label: "Phone / voicemail" }
+      - { value: email, label: "Email" }
+      - { value: linkedin, label: "LinkedIn" }
+
+  - id: touches
+    type: input_table
+    label: "Your 5 POV email touches"
+    row_mode: fixed
+    columns:
+      - { name: subject_line, label: "Subject line", type: text }
+      - { name: trigger, label: "S1 — Trigger: why are you reaching out right now?", type: textarea }
+      - { name: current_state, label: "S2 — Current state: their pain, no \"we\" language", type: textarea }
+      - { name: ideal_state, label: "S3 — Ideal state: one line of outcome, no product mention", type: textarea }
+      - { name: cta, label: "S4 — CTA: a low-pressure closed question", type: textarea }
+    fixed_rows:
+      - { row_id: touch_1, label: "Touch 1 — Establish Your POV (Day 1)", reference_text: "Subject formula: \"Your [trigger] and [consequence]\". Lead with the trigger, name the complexity it creates, drop light social proof." }
+      - { row_id: touch_2, label: "Touch 2 — Add Depth (Day 5)", reference_text: "A second, different problem than Touch 1. Name why it's hard to solve. About a third of replies land on this touch or the next." }
+      - { row_id: touch_3, label: "Touch 3 — Social Proof (Day 12)", reference_text: "Move from their specific situation to a broader pattern — what similar companies did differently. Normalizes the problem." }
+      - { row_id: touch_4, label: "Touch 4 — Lower the Barrier (Day 22)", reference_text: "Subject formula: \"Wrong timing on [trigger]?\" A closed either/or timing question. No pitch." }
+      - { row_id: touch_5, label: "Touch 5 — Permission to Exit (Day 30)", reference_text: "Subject formula: \"Closing the loop on [trigger]\". Signal it's the last note, give a clean out, leave the door open, close explicitly." }
+
+  - id: signals
+    type: input_table
+    label: "Map your real buying signals to an outreach angle"
+    row_mode: dynamic
+    min: 2
+    max: 6
+    columns:
+      - { name: signal, label: "Signal (what you'd actually see)", type: text }
+      - { name: angle, label: "How it changes your outreach angle", type: textarea }
+
+  - id: list_strategy
+    type: input_text
+    label: "What makes a prospect Tier 1 for you — perfect fit and an active signal right now?"
+    field_type: textarea
+
+  - type: output_preview
+    shows_writes: true
