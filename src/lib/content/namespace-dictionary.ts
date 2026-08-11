@@ -457,6 +457,25 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
       gap_3_reasoning: scalar,
       gap_3_next_step: scalar,
     }),
+    // Append-only, same precedent as cro_diagnosis — a re-run adds a new
+    // one-pager rather than overwriting, since an org may reasonably want
+    // more than one over time (different ICP segments, different angles).
+    // Written by the enablement-one-pager exercise, the third of the
+    // platform's three named agents (see CLAUDE.md — Enablement Lead is
+    // Build). Org-scoped like cro_diagnosis, not user-scoped like
+    // progress.vp_coaching — a one-pager is a shared sales asset, not
+    // personal to the rep who generated it. value_bullets is one string
+    // with newline-separated bullets, not an array — same
+    // ai_generate-fields-are-flat constraint as cro_diagnosis's fixed gap
+    // count, just solved differently here since a one-pager's bullet count
+    // genuinely varies (3-5), unlike CRO's fixed-at-3 design.
+    one_pagers: arrayOf({
+      headline: scalar,
+      subheadline: scalar,
+      value_bullets: scalar,
+      proof_point: scalar,
+      cta: scalar,
+    }),
   },
 
   // Per-rep IKAP module progress. Now a real shape, not the earlier `any`
