@@ -202,6 +202,30 @@ edited the context field it depends on, confirmed it flipped to "Needs
 regeneration" while an unrelated section stayed "Approved," then regenerated
 and confirmed it picked up the new value.
 
+**Discovery Framework section fixed** — was reading only
+`process.discovery_framework`, an elaborate shape nothing has ever written
+to (see that field's own namespace comment), so it rendered permanently
+blank even though `discovery-focus-builder`'s real, already-populated FOCUS
+question bank (`process.discovery_script`) has existed since that exercise
+shipped — the two are deliberately different shapes (the flatter one an
+`input_table` naturally produces), not a naming typo, so this was a section
+simply never wired to read the field that actually has data. Fixed with a
+bespoke template rendering the five FOCUS rows (Facts, Objectives,
+Complications, Uncovering Impact, Stakes) in order with the rep's own
+questions, falling back to the generic renderer for
+`discovery_framework`/`pain_tree.topics` if either is ever populated. No
+new exercise content needed — this closed a real gap using content that
+already existed. Verified live: seeded a real FOCUS script, generated the
+section, confirmed all five rows rendered in the correct order with the
+exact seeded questions.
+
+Several other Playbook sections are still permanently blank for the
+opposite reason — no exercise writes to their namespaces at all yet
+(Outbound System, Intro Call Framework, Demo Framework, Closing Motion,
+Meeting Cadence and KPIs, Team) — that is a real curriculum-content gap,
+not a wiring bug like this one was, and is a larger effort (new exercises,
+not a section-template fix).
+
 **Curriculum expanded** with 3 new exercises to seed previously-empty
 playbook sections and exercise step types that had zero live content:
 `cost-of-inaction-calculator` (module: `messaging-foundation`), `objection-

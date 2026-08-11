@@ -53,6 +53,16 @@ function renderGeneric(ctx: Ctx, keys: string[]): string {
 type Segment = { segment_label?: string; industry?: string; size_range?: string; geography?: string };
 type Persona = { title?: string; role_in_deal?: string; cares_about?: string; day_to_day_pains?: string };
 type ImpactArea = { area_name?: string; who_feels_it?: string; metric_affected?: string; cost_if_ignored?: string };
+type DiscoveryRow = { row_id?: string; user_questions?: string };
+
+const FOCUS_LABELS: Record<string, string> = {
+  facts: "Facts",
+  objectives: "Objectives",
+  complications: "Complications",
+  uncovering_impact: "Uncovering Impact",
+  stakes: "Stakes",
+};
+const FOCUS_ORDER = ["facts", "objectives", "complications", "uncovering_impact", "stakes"];
 
 export const PLAYBOOK_SECTIONS: SectionDef[] = [
   {
@@ -156,8 +166,23 @@ export const PLAYBOOK_SECTIONS: SectionDef[] = [
   {
     slug: "discovery-framework",
     title: "8. Discovery Framework",
-    reads: ["process.discovery_framework", "pain_tree.topics"],
-    render: (ctx) => renderGeneric(ctx, ["process.discovery_framework", "pain_tree.topics"]),
+    // process.discovery_script (written by discovery-focus-builder) is the
+    // real, already-populated FOCUS question bank — process.discovery_framework
+    // is a richer shape nothing has ever written to yet (see its own
+    // namespace comment). Reads both so this section starts rendering the
+    // moment the FOCUS exercise is done, without waiting on a
+    // discovery_framework-writing exercise that does not exist.
+    reads: ["process.discovery_script", "process.discovery_framework", "pain_tree.topics"],
+    render: (ctx) => {
+      const rows = (ctx["process.discovery_script"] as DiscoveryRow[]) ?? [];
+      if (rows.length === 0) return renderGeneric(ctx, ["process.discovery_framework", "pain_tree.topics"]);
+      const byRowId = new Map(rows.map((r) => [r.row_id, r]));
+      const focusText = FOCUS_ORDER.filter((id) => byRowId.get(id)?.user_questions)
+        .map((id) => `## ${FOCUS_LABELS[id]}\n${byRowId.get(id)!.user_questions}`)
+        .join("\n\n");
+      const rest = renderGeneric(ctx, ["process.discovery_framework", "pain_tree.topics"]);
+      return [focusText, rest].filter(Boolean).join("\n\n");
+    },
   },
   {
     slug: "demo-framework",
