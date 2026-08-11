@@ -61,6 +61,7 @@ steps:
 
   - id: know_check_1
     type: quiz
+    stage: know
     label: "A prospect says 'I need to talk to my team.' What type of objection is this most likely?"
     options:
       - { value: smoke_screen, label: "Smoke Screen" }
@@ -72,6 +73,7 @@ steps:
 
   - id: know_check_2
     type: quiz
+    stage: know
     label: "A prospect says 'Our budget cycle doesn't open until next quarter.' What type of objection is this most likely?"
     options:
       - { value: smoke_screen, label: "Smoke Screen" }
@@ -100,6 +102,7 @@ steps:
 
   - id: awareness_check
     type: quiz
+    stage: awareness
     label: "Which LASER step did the rep skip in this call?"
     scenario: "{{answers.awareness_scenario.scenario_text}}"
     options:

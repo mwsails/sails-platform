@@ -16,6 +16,7 @@ import {
   XIcon,
   ChartBarIcon,
   DocumentIcon,
+  ChevronRightIcon,
 } from "@/components/icons";
 import type { ComponentType, SVGProps } from "react";
 
@@ -30,6 +31,7 @@ const NAMESPACE_LABELS: Record<string, string> = {
   objections: "Objections",
   cadence: "Cadence",
   team: "Team",
+  progress: "Coaching Progress",
 };
 
 const NAMESPACE_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
@@ -43,6 +45,7 @@ const NAMESPACE_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = 
   objections: XIcon,
   cadence: ChartBarIcon,
   team: UsersIcon,
+  progress: SparkleIcon,
 };
 
 export default async function ProfilePage() {
@@ -54,6 +57,17 @@ export default async function ProfilePage() {
   const namespaces = Object.keys(grouped).sort();
   const fieldOptions = loadFieldOptions();
 
+  // progress.vp_coaching is append-only (same precedent as
+  // metrics.diagnosis/org.cro_diagnosis) — the most recent entry is the
+  // rep's current coaching note. Pulled out of the generic namespace list
+  // below for its own prominent card, same treatment CRO gets on Journey.
+  const vpCoachingEntries = (grouped["progress"] ?? []).find((f) => f.key === "progress.vp_coaching")?.value as
+    | { coaching_note: string }[]
+    | undefined;
+  const latestCoaching =
+    vpCoachingEntries && vpCoachingEntries.length > 0 ? vpCoachingEntries[vpCoachingEntries.length - 1] : null;
+  const hasIkapHistory = ((grouped["progress"] ?? []).find((f) => f.key === "progress.ikap")?.value as unknown[] | undefined)?.length;
+
   return (
     <main className="mx-auto max-w-2xl px-6 py-12">
       <h1 className="text-2xl font-semibold text-[var(--foreground)]">Your Sales Profile</h1>
@@ -61,6 +75,33 @@ export default async function ProfilePage() {
         Everything your exercises have written so far. Edit directly here if something needs
         correcting — it flows through the same pipeline as an exercise.
       </p>
+
+      {latestCoaching && (
+        <div className="mt-5 rounded-2xl border border-[var(--sails-border)] bg-[var(--background)] p-4 shadow-[var(--shadow-soft)]">
+          <div className="flex items-center gap-2">
+            <SparkleIcon className="h-4 w-4 shrink-0 text-[var(--sails-blue)]" />
+            <h2 className="text-sm font-medium text-[var(--foreground)]">Your VP of Sales</h2>
+            <Link
+              href="/journey/vp-of-sales-coaching"
+              className="ml-auto text-xs font-medium text-[var(--sails-blue)] hover:underline"
+            >
+              Re-run
+            </Link>
+          </div>
+          <p className="mt-2 text-sm leading-relaxed text-muted">{latestCoaching.coaching_note}</p>
+        </div>
+      )}
+
+      {!latestCoaching && !!hasIkapHistory && (
+        <Link
+          href="/journey/vp-of-sales-coaching"
+          className="mt-5 flex items-center gap-3 rounded-2xl border border-dashed border-[var(--sails-border)] bg-[var(--background)] px-4 py-3.5 text-sm text-[var(--sails-blue)] shadow-[var(--shadow-soft)] transition-colors duration-150 hover:bg-[var(--sails-blue-light)]"
+        >
+          <SparkleIcon className="h-4 w-4 shrink-0" />
+          Get coaching from your VP of Sales
+          <ChevronRightIcon className="ml-auto h-3.5 w-3.5" />
+        </Link>
+      )}
 
       {namespaces.length === 0 ? (
         <div className="mt-8 flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--sails-border)] px-6 py-12 text-center">

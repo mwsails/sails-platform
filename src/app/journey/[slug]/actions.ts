@@ -9,6 +9,7 @@ import { generateSuggestions } from "@/lib/ai/suggest";
 import { generateContent } from "@/lib/ai/generate";
 import { reviewContent } from "@/lib/ai/review";
 import { scrapeAndExtract } from "@/lib/scrape/firecrawl";
+import { renderTemplate } from "@/lib/template";
 
 /**
  * Autosave for in-progress exercise answers — otherwise nothing persists
@@ -54,6 +55,45 @@ export async function submitExercise(
   if (error) throw error;
 
   await writeContext(supabase, user.orgId, user.id, exercise.writes, answers, "exercise", sessionId);
+
+  // Real per-rep IKAP progress tracking — a generic fix, not a one-off for
+  // objection-framework (the only exercise with any `quiz` steps today).
+  // Every future quiz-bearing exercise gets a working progress.ikap write
+  // for free the moment its quiz steps declare a `stage`, same "generic
+  // renderer fix" precedent as CalculatorField's result persistence.
+  // Correctness is recomputed here from the step's own `correct` template,
+  // never trusted from the client (QuizField's immediate feedback is a UX
+  // convenience, not the source of truth) — an unanswered quiz step
+  // resolves `answers[id]` to undefined, which never equals a rendered
+  // `correct` string, so it correctly records as incorrect rather than
+  // being silently skipped.
+  const quizSteps = exercise.steps.filter(
+    (s): s is Extract<typeof s, { type: "quiz" }> => s.type === "quiz" && "stage" in s && s.stage != null
+  );
+  if (quizSteps.length > 0) {
+    // `correct` supports the same {{context.X}}/{{answers.X}} interpolation
+    // as everywhere else that renders exercise content — every real quiz
+    // today only references a prior step's answers, but grading against
+    // this exercise's own `reads` context is part of the same contract, so
+    // it needs the real thing here too, not an empty stand-in.
+    const context = await readContext(supabase, user.orgId, user.id, exercise.reads);
+    const templateData = { context, answers };
+    const ikapEntries = quizSteps.map((s) => ({
+      exercise_slug: exercise.slug,
+      step_id: s.id,
+      stage: s.stage,
+      is_correct: (answers[s.id] as string | undefined) === renderTemplate(s.correct, templateData).trim(),
+    }));
+    await writeContext(
+      supabase,
+      user.orgId,
+      user.id,
+      [{ from: "answers.__ikap_entries", to: "progress.ikap", mode: "append" }],
+      { __ikap_entries: ikapEntries },
+      "exercise",
+      sessionId
+    );
+  }
 
   // Tier recommendation used to be computed here as a special case tied to
   // completing onboarding-diagnostic. That exercise is retired (see its
