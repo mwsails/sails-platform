@@ -605,6 +605,56 @@ Meeting Cadence/KPIs and Team's source docs not yet confirmed
 `SAILS_KPI_Tracker*.xlsx` spreadsheets). Each should ship as its own
 branch/PR, same incremental pattern as every other exercise this session.
 
+**Agent-centric IA reorg** — nav (`src/components/NavBar.tsx`) rebuilt
+around the three named agents, matching the order and framing the
+marketing site already pitches (CRO -> VP of Sales -> Enablement Lead),
+not generic page names. Direct ask from Matt after his first real look at
+the deployed app: the three agents should be the primary structure he
+sees, Playbook should live under VP of Sales, Library under Enablement
+Lead, and all onboarding-collected data needs a visible home.
+
+Two real route moves, low-risk since `/playbook` and `/library` were each
+referenced from only a handful of files: `/playbook` -> `/vp-of-sales/
+playbook` (`git mv`, `revalidatePath` calls and the export link updated),
+`/library` -> `/enablement-lead/library` (`git mv`, export hrefs updated).
+Two new hub pages: `/vp-of-sales` (the coaching card moved here from
+Profile, plus an entry card into Playbook with a live readiness
+percentage) and `/enablement-lead` (a build-a-one-pager entry point plus
+an entry card into Library with a live asset count).
+
+Deliberately did NOT rename `/journey` itself, even though its nav label
+is now "CRO" — it's referenced by auth link generation, the onboarding
+handoff redirect, and exercise session/action code in over a dozen files,
+all touching the exercise-taking engine itself. A full rename there is a
+meaningfully bigger, riskier change than what was actually asked for,
+so the route stayed and only its nav label/heading/back-links were
+updated to say "CRO." One accepted rough edge from this: an exercise
+that conceptually belongs to VP of Sales or Enablement Lead (e.g.
+`vp-of-sales-coaching`, `enablement-one-pager`) still lives at
+`/journey/[slug]`, so the CRO nav item (not VP of Sales/Enablement Lead)
+highlights as active while running it — the underlying curriculum engine
+is intentionally shared across all three agents rather than split by
+route.
+
+`/profile` kept its existing "every namespace, editable" content (this
+already was the "see all your onboarding data" page — nothing new needed
+building for that ask) but dropped the VP of Sales coaching card that
+used to live there, and its heading changed from "Your Sales Profile" to
+"Your Data" now that it's purely the org-context view, not mixed with
+personal coaching.
+
+Live-verified end to end against Matt's own real "Sails Advisory" org
+(not a throwaway test org) via a fresh magic-link sign-in: CRO's page
+renders his real 73%-complete curriculum and CRO diagnosis; VP of Sales
+renders his real Playbook readiness (6 of 14 sections); Enablement Lead
+renders his real one-pager count and the actual one-pager he'd already
+generated, correctly branded with the real SAILS logo; both new nested
+export routes (`/enablement-lead/library/[id]/export/{pdf,pptx}`)
+returned 200 with a real generated PDF; Profile/Your Data still shows
+every real namespace. Checked dark mode on the new hub pages too — no new
+styling was introduced (existing theme tokens throughout), so no
+new contrast issues.
+
 ## Hosting (once past Phase 0)
 
 Vercel, not Netlify — this is a Next.js App Router app with server-rendered

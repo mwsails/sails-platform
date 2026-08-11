@@ -28,7 +28,7 @@ export default async function ExercisePage({ params }: { params: Promise<{ slug:
         className="inline-flex items-center gap-1 text-sm text-muted transition-colors duration-150 hover:text-[var(--sails-blue)]"
       >
         <ArrowRightIcon className="h-3.5 w-3.5 rotate-180" />
-        Journey
+        CRO
       </Link>
       <p className="mt-4 text-sm text-muted">{exercise.time_estimate}</p>
       <h1 className="font-[family-name:var(--font-serif)] text-2xl font-semibold text-[var(--foreground)]">
