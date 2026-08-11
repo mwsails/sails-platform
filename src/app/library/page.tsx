@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/current-org";
 import { readContext } from "@/lib/context/store";
-import { BuildingIcon, SparkleIcon, ChevronRightIcon } from "@/components/icons";
+import { BuildingIcon, SparkleIcon, ChevronRightIcon, DownloadIcon } from "@/components/icons";
 
 type OnePager = {
   id: string;
@@ -117,6 +117,25 @@ export default async function LibraryPage() {
                 <p className="mt-4 text-sm font-medium" style={{ color: primary }}>
                   {p.cta}
                 </p>
+              </div>
+              {/* Outside the "paper" surface — these are app controls, not
+                  part of the document, so they use the app's normal
+                  theme-aware tokens like everywhere else in the UI. */}
+              <div className="flex items-center gap-2 border-t border-[var(--sails-border)] bg-[var(--background)] px-6 py-3">
+                <a
+                  href={`/library/${p.id}/export/pdf`}
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-[var(--sails-blue)] transition-colors duration-150 hover:bg-[var(--sails-blue-light)]"
+                >
+                  <DownloadIcon className="h-3.5 w-3.5" />
+                  Export PDF
+                </a>
+                <a
+                  href={`/library/${p.id}/export/pptx`}
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-[var(--sails-blue)] transition-colors duration-150 hover:bg-[var(--sails-blue-light)]"
+                >
+                  <DownloadIcon className="h-3.5 w-3.5" />
+                  Export PowerPoint
+                </a>
               </div>
             </article>
           ))}

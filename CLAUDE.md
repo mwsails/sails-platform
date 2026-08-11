@@ -468,7 +468,43 @@ app theme.
 All three named agents from the marketing site's pitch are now live:
 CRO (Assess), VP of Sales (Coach), Enablement Lead (Build).
 
-Not done: PDF export (see above).
+**One-pager PDF and PowerPoint export — live**
+(`src/lib/library/one-pager-export.tsx`, `/library/[id]/export/{pdf,pptx}`
+route handlers). PDF/PPTX export was originally asked about for the
+Playbook, deferred at the time since the DOCX Playbook export pattern
+doesn't extend cleanly to either format — but the actual ask was "important
+for enablement assets," and once Enablement Lead's one-pager existed, that
+was the real fit: a one-pager is exactly the short, brand-forward,
+externally-shareable document PDF and a single PPTX slide are built for,
+unlike the 14-section internal Playbook DOCX already serves well.
+
+`@react-pdf/renderer` for PDF (renders a JSX `<Document>`/`<Page>` tree
+server-side via `renderToBuffer`, no headless browser — same "runs cleanly
+in a Vercel serverless function" requirement DOCX export had to satisfy)
+and `pptxgenjs` for PowerPoint (one branded slide, not a deck — matches the
+marketing site's own framing of a one-pager as a single artifact). Both
+share `src/lib/library/one-pager-export.tsx` (a `.tsx` file, not `.ts` —
+react-pdf's document tree is JSX). Real gotcha caught before it ever hit a
+live test: `pptxgenjs` color options take a bare hex string (`"1E293B"`),
+not CSS notation (`"#1E293B"`) — `org.brand.*` colors are stored with the
+`#`, which `react-pdf` and the app's own CSS both accept directly but
+`pptxgenjs` silently doesn't, so brand colors are stripped once at the top
+of `buildOnePagerPptx` rather than at each scattered call site.
+
+Verified live end to end: fetched both export routes directly, confirmed
+correct `Content-Type`/`Content-Disposition` and each format's real magic
+bytes (`%PDF-` for PDF, the ZIP signature for PPTX, since `.pptx` is a ZIP
+container same as `.docx`). Then went a level deeper than the DOCX
+verification — called `buildOnePagerPdf`/`buildOnePagerPptx` directly in a
+throwaway script to get clean output files, extracted the PPTX slide's real
+text via `unzip`, and extracted the PDF's real text via `pdftotext`
+(`strings` doesn't work on PDF content streams, which are typically
+compressed) — confirmed every field (headline, subheadline, all three
+bullets, the proof point, the CTA) came through exactly correct in both
+formats.
+
+Not done: none of the deferred export work remains — DOCX (Playbook), PDF,
+and PowerPoint (one-pager) are all live.
 
 ## Hosting (once past Phase 0)
 
