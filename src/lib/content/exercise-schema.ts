@@ -121,6 +121,15 @@ const selectStep = z.object({
  * needed so an Awareness quiz can reference a prior ai_generate step's
  * dynamically-generated scenario and grade against whatever answer that
  * generation produced, not a fixed value.
+ *
+ * `stage` is optional and only tags which IKAP stage this check belongs
+ * to (`know` or `awareness`) — inferring it from the step id's naming
+ * convention (e.g. `know_check_1`) would be fragile the moment an author
+ * picks a different id, so it is explicit instead. Read by
+ * `submitExercise` (journey/[slug]/actions.ts) to write real per-rep
+ * progress into `progress.ikap` whenever a tagged quiz is answered — a
+ * quiz with no `stage` still renders and grades exactly the same, it just
+ * does not contribute to progress tracking.
  */
 const quizStep = z.object({
   ...stepBaseFields,
@@ -131,6 +140,7 @@ const quizStep = z.object({
   options: z.array(z.object({ value: z.string(), label: z.string() })).min(2),
   correct: z.string().min(1),
   explanation: z.string().min(1),
+  stage: z.enum(["know", "awareness"]).optional(),
 });
 // A literal (non-templated) `correct` value must be one of `options[].value`
 // — checked in validate.ts (Rule 10), not here, since z.discriminatedUnion

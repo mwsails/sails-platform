@@ -1,0 +1,43 @@
+# The second of the platform's three named agents (see CLAUDE.md — CRO,
+# built first, is Assess; this is Coach). Unlike cro-diagnosis, which reads
+# broadly across the whole ORG's context, this reads one rep's own
+# progress.ikap history (user-scoped) and coaches that person specifically
+# — the marketing site's "VP of Sales" job is teaching, not org diagnosis.
+# Gated on requires: [progress.ikap] rather than onboarding completion,
+# since there is nothing to coach on until a rep has answered at least one
+# real Know/Awareness check (currently only objection-framework.yml has
+# any) — see that exercise and submitExercise's generic IKAP-write fix for
+# where progress.ikap entries actually come from.
+slug: vp-of-sales-coaching
+schema_version: 1
+title: "Get Coaching From Your VP of Sales"
+module: vp-of-sales-coaching
+tracks: [smb, mid-market]
+time_estimate: 3m
+intent: development
+
+reads: [respondent.role, respondent.sales_experience, icp.segments, personas.personas, progress.ikap]
+requires: [progress.ikap]
+
+writes:
+  - from: answers.coaching
+    to: progress.vp_coaching
+    mode: append
+
+steps:
+  - type: teach
+    body: |
+      Your VP of Sales looked at your practice history, the Know and
+      Awareness checks you've actually answered, and picked one real
+      pattern to work on. This is a draft, not a verdict — agree with it,
+      push back on it, edit it if it's off, then save your read.
+
+  - id: coaching
+    type: ai_generate
+    prompt_ref: vp-of-sales-coaching
+    reads: [respondent.role, respondent.sales_experience, icp.segments, personas.personas, progress.ikap]
+    fields:
+      - { name: coaching_note, label: "Coaching note", type: textarea }
+
+  - type: output_preview
+    shows_writes: true

@@ -378,10 +378,53 @@ generic advice, with all three `next_step` values matching real curriculum
 slugs. Confirmed the write persisted correctly and the Journey page card
 rendered with working links to the right exercises.
 
-VP of Sales and Enablement Lead are not started — CRO was the deliberate
-first pick (it's the Assess step; the other two don't have anything to act
-on without a diagnosis driving them), not a promise about build order
-beyond that.
+**"Your VP of Sales" — the second agent, live** (`vp-of-sales-coaching`
+exercise, `vp-of-sales-coaching` module, `content/prompts/vp-of-sales-
+coaching.md`). Coach, not diagnose: unlike CRO's org-wide read, this reads
+one rep's own `progress.ikap` history and coaches that person specifically.
+
+Building it surfaced a real, confirmed gap: `progress.ikap` was a stub
+(`{kind: "any"}`) nothing had ever written to. `objection-framework.yml`
+(the only exercise with a real IKAP Know/Awareness quiz loop) only ever
+persisted one AI-generated field via `writes` — every quiz answer, right
+or wrong, vanished the moment the exercise was submitted, so there was no
+real per-rep skill data anywhere for a coaching agent to read. Fixed as a
+generic mechanism, not a one-off for that one exercise: the `quiz` step
+type gained an optional `stage` field (`"know"` \| `"awareness"`, explicit
+rather than inferred from the step's id naming), and `submitExercise`
+(`journey/[slug]/actions.ts`) now recomputes correctness server-side for
+any tagged quiz step at completion time (re-rendering that step's own
+`correct` template against real context, never trusting the client) and
+writes it to `progress.ikap` — every current and future quiz-bearing
+exercise gets real progress tracking for free the moment its quiz steps
+are tagged, same "generic renderer fix, not a one-off hack" precedent as
+`calculator`'s `result`-persistence fix. `progress.ikap` itself is now a
+real shape (`{exercise_slug, step_id, stage, is_correct}`), firmed up from
+the `any` placeholder now that there is something real to validate it
+against.
+
+The coaching agent reads that history plus the rep's own role/experience
+and the org's ICP/personas for grounding, and looks for a real pattern
+(missing Know but acing Awareness means the concept isn't learned yet;
+the reverse means it is understood but not yet internalized under
+pressure) rather than reacting to a single answer in isolation — with only
+one or two data points, it says so plainly instead of inventing a pattern.
+Surfaced as a standalone card on the Profile page (not Journey — this
+coaches a person, not the org, matching the same user-scoped/org-scoped
+placement discipline the codebase already applies to storage), same
+two-part precedent as CRO and the older opp-rate diagnosis: a completable
+exercise plus a prominent status card, `progress.vp_coaching` append-only.
+
+Verified live end to end: completed `objection-framework`'s three quiz
+steps with a deliberately mixed real result (one Know check right, one
+Know check wrong, the AI-generated Awareness check right), confirmed
+`progress.ikap` persisted exactly that pattern with real ids, then ran the
+coaching agent — it correctly called out the specific pattern (missed one
+Know check despite acing Awareness, "the reverse of what usually trips
+people up"), named the exact step to revisit, and was honest that three
+data points is early signal, not a hard pattern, exactly as instructed.
+
+Enablement Lead is not started.
 
 Not done: PDF export (see above).
 

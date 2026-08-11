@@ -459,17 +459,32 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
     }),
   },
 
-  // Per-rep IKAP module progress (install/know/awareness/practice status,
-  // quiz scores). Deliberately loose (`any`) rather than a precisely
-  // modeled shape — the actual IKAP UI doesn't exist yet (quiz step type
-  // shipped this session, Install/Awareness content authoring hasn't
-  // started), and guessing the exact per-module tracking shape now risks
-  // getting it wrong before there's a real screen to validate it against.
-  // User-scoped (see USER_SCOPED_NAMESPACES below) — progress is per-rep
-  // per the "multi-rep is per-rep" decision, same reasoning as
-  // respondent.*.
+  // Per-rep IKAP module progress. Now a real shape, not the earlier `any`
+  // placeholder — firmed up once there was an actual write path to
+  // validate it against: submitExercise (journey/[slug]/actions.ts)
+  // writes one entry per `quiz`-type step that declares a `stage`
+  // (Exercise Schema's quiz step), computed server-side by re-rendering
+  // that step's `correct` template and comparing to the submitted answer,
+  // not trusted from the client. User-scoped (see USER_SCOPED_NAMESPACES
+  // below) — progress is per-rep per the "multi-rep is per-rep" decision,
+  // same reasoning as respondent.*. Append-only: a redo of the same
+  // exercise adds new entries rather than overwriting, so history (did
+  // they get this wrong once or every time) survives.
   progress: {
-    ikap: { kind: "any" },
+    ikap: arrayOf({
+      exercise_slug: scalar,
+      step_id: scalar,
+      stage: scalar, // "know" | "awareness"
+      is_correct: scalar, // boolean, stored as the literal true/false JSON value
+    }),
+    // Append-only VP of Sales coaching history — written by the
+    // vp-of-sales-coaching exercise, which reads this rep's own ikap
+    // entries above (not the whole org's) and coaches the person, not the
+    // org. Same editable-review-before-save contract as everything else
+    // ai_generate touches (Exercise Schema Section 6/9).
+    vp_coaching: arrayOf({
+      coaching_note: scalar,
+    }),
   },
 
   team: {
