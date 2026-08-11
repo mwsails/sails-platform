@@ -424,7 +424,49 @@ Know check despite acing Awareness, "the reverse of what usually trips
 people up"), named the exact step to revisit, and was honest that three
 data points is early signal, not a hard pattern, exactly as instructed.
 
-Enablement Lead is not started.
+**"Your Enablement Lead" — the third and final agent, live** (`enablement-
+one-pager` exercise, `enablement-lead` module, `content/prompts/enablement-
+one-pager.md`). Build, not diagnose or coach. The marketing site's own
+framing already named this exact first artifact: *"a one-pager for [their
+ICP] in your brand."* Two things already pointed at this before it existed
+— `org.brand.*`'s own doc comment said "every Enablement-generated asset is
+meant to render in these tokens eventually," and `/library` was already a
+named, empty-stated placeholder page ("Filterable reference frameworks and
+one-pagers ship in Phase 3").
+
+Different in kind from CRO/VP of Sales: those two produce internal
+reasoning (a diagnosis, a coaching note); this produces prose meant to
+leave the platform — copy a rep could actually send a prospect. The prompt
+is explicit about never fabricating a statistic, customer name, or result
+not present in context, leaning on whatever real data is populated
+(impact areas, proof points from the Business-bucket scrape) rather than
+inventing specifics when messaging hasn't been built yet — same "propose,
+don't assume" discipline as everything else, just with a higher bar since
+this is customer-facing.
+
+Written to `org.one_pagers` (org-scoped like `cro_diagnosis`, not
+user-scoped like `progress.vp_coaching` — a one-pager is a shared sales
+asset, not personal to the rep who generated it), append-only so an org
+can generate more than one over time. `value_bullets` is one
+newline-separated string, not an array — same `ai_generate`-fields-are-flat
+constraint `cro_diagnosis` hit, solved differently here since a one-pager's
+bullet count genuinely varies (3-5) rather than being fixed like CRO's
+3 gaps.
+
+`/library` now actually renders these, themed with `org.brand.*` (logo,
+primary/secondary color). Caught and fixed a real bug during verification:
+the card originally used the app's own theme-reactive text tokens
+(`var(--foreground)`, `text-muted`) alongside hardcoded brand-color
+backgrounds — in dark mode, a light `secondary` brand color plus
+light-in-dark-mode foreground text produced nearly illegible text.
+Fixed by giving the card a fixed light "paper" surface and fixed dark-slate
+text tokens instead, independent of the app's own theme — correct because
+a one-pager is a preview of a document meant to be sent or printed, not a
+dashboard element, so it should look the same regardless of the viewer's
+app theme.
+
+All three named agents from the marketing site's pitch are now live:
+CRO (Assess), VP of Sales (Coach), Enablement Lead (Build).
 
 Not done: PDF export (see above).
 

@@ -1,0 +1,75 @@
+# The third and final named agent (see CLAUDE.md — CRO is Assess, VP of
+# Sales is Coach, this is Build). Per the marketing site's own framing,
+# Enablement Lead's first artifact is literally "a one-pager for [their
+# ICP] in your brand" — this builds that, almost exactly as pitched there.
+# Unlike CRO/VP of Sales, this produces prose meant to leave the platform
+# (sent to a prospect), not internal reasoning, so the generated draft
+# still goes through the same editable-review-before-save step (Exercise
+# Schema Section 6/9) but the bar for what "review before it counts" means
+# is higher here: a rep should actually read this before sending it
+# anywhere, not just skim it.
+slug: enablement-one-pager
+schema_version: 1
+title: "Generate a One-Pager"
+module: enablement-lead
+tracks: [smb, mid-market]
+time_estimate: 5m
+intent: development
+
+reads:
+  [
+    company.name,
+    company.product_name,
+    company.what_you_sell,
+    company.capabilities,
+    company.proof,
+    icp.segments,
+    personas.personas,
+    messaging.pov_statement,
+    messaging.problem_statements,
+    messaging.soundbites,
+    messaging.no_logo_pitch,
+    pain_tree.impact_areas,
+  ]
+requires: [icp.segments]
+
+writes:
+  - from: answers.one_pager
+    to: org.one_pagers
+    mode: append
+
+steps:
+  - type: teach
+    body: |
+      Your Enablement Lead drafted a one-pager from what you have told the
+      platform so far — the kind of thing you would actually hand a
+      prospect. Read it the way a prospect would, not the way you already
+      know your own pitch. Edit anything that is off, then save it.
+
+  - id: one_pager
+    type: ai_generate
+    prompt_ref: enablement-one-pager
+    reads:
+      [
+        company.name,
+        company.product_name,
+        company.what_you_sell,
+        company.capabilities,
+        company.proof,
+        icp.segments,
+        personas.personas,
+        messaging.pov_statement,
+        messaging.problem_statements,
+        messaging.soundbites,
+        messaging.no_logo_pitch,
+        pain_tree.impact_areas,
+      ]
+    fields:
+      - { name: headline, label: "Headline", type: text }
+      - { name: subheadline, label: "Subheadline", type: text }
+      - { name: value_bullets, label: "Value bullets (one per line)", type: textarea }
+      - { name: proof_point, label: "Proof point", type: textarea }
+      - { name: cta, label: "Call to action", type: text }
+
+  - type: output_preview
+    shows_writes: true
