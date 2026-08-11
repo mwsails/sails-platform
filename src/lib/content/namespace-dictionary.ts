@@ -435,6 +435,28 @@ export const NAMESPACES: Record<string, Record<string, FieldNode>> = {
       font_heading: scalar,
       font_body: scalar,
     }),
+    // Append-only (same mode: append precedent as metrics.diagnosis) — a
+    // re-run adds a new entry rather than overwriting, so a future view
+    // could show "the CRO flagged this twice, still open." Broader than
+    // metrics.diagnosis (one funnel metric): this reads across most of
+    // what the org has accumulated and ranks the 3 biggest gaps, not one
+    // diagnosed cause. Fixed at exactly 3 numbered gaps rather than a
+    // variable-length list — ai_generate's fields are a flat named-field
+    // object, not an array, so this is the shape that fits without new
+    // step-type plumbing; worth revisiting if 3 proves too rigid.
+    // gap_N_next_step is an exercise slug, not free text — validated
+    // against the real curriculum list in the prompt itself, not by code.
+    cro_diagnosis: arrayOf({
+      gap_1: scalar,
+      gap_1_reasoning: scalar,
+      gap_1_next_step: scalar,
+      gap_2: scalar,
+      gap_2_reasoning: scalar,
+      gap_2_next_step: scalar,
+      gap_3: scalar,
+      gap_3_reasoning: scalar,
+      gap_3_next_step: scalar,
+    }),
   },
 
   // Per-rep IKAP module progress (install/know/awareness/practice status,

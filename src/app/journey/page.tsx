@@ -54,6 +54,7 @@ export default async function JourneyPage() {
       "metrics.lead_sources",
       "metrics.deferred",
       "org.brand.logo",
+      "org.cro_diagnosis",
     ]),
   ]);
 
@@ -96,6 +97,30 @@ export default async function JourneyPage() {
     | { metric: string; cause: string; confidence: string; reasoning: string }[]
     | undefined) ?? [];
   const latestOppRateDiagnosis = [...diagnoses].reverse().find((d) => d.metric === "opp_rate");
+
+  // org.cro_diagnosis is append-only like metrics.diagnosis above — the
+  // most recent entry is what's actionable now.
+  const croDiagnoses = (context["org.cro_diagnosis"] as
+    | {
+        gap_1: string;
+        gap_1_reasoning: string;
+        gap_1_next_step: string;
+        gap_2: string;
+        gap_2_reasoning: string;
+        gap_2_next_step: string;
+        gap_3: string;
+        gap_3_reasoning: string;
+        gap_3_next_step: string;
+      }[]
+    | undefined) ?? [];
+  const latestCroDiagnosis = croDiagnoses.length > 0 ? croDiagnoses[croDiagnoses.length - 1] : null;
+  const croGaps = latestCroDiagnosis
+    ? [
+        { gap: latestCroDiagnosis.gap_1, reasoning: latestCroDiagnosis.gap_1_reasoning, nextStep: latestCroDiagnosis.gap_1_next_step },
+        { gap: latestCroDiagnosis.gap_2, reasoning: latestCroDiagnosis.gap_2_reasoning, nextStep: latestCroDiagnosis.gap_2_next_step },
+        { gap: latestCroDiagnosis.gap_3, reasoning: latestCroDiagnosis.gap_3_reasoning, nextStep: latestCroDiagnosis.gap_3_next_step },
+      ]
+    : [];
   const CAUSE_NEXT_STEP: Record<string, { slug: string; label: string } | undefined> = {
     discovery_depth: { slug: "discovery-focus-builder", label: "Build your FOCUS discovery script" },
     single_threading: { slug: "champion-strength-check", label: "Check your champion's strength" },
@@ -249,6 +274,56 @@ export default async function JourneyPage() {
             page (<code>company.recommended_tier</code>).
           </p>
         </div>
+      )}
+
+      {latestCroDiagnosis && (
+        <div className="mt-4 rounded-2xl border border-[var(--sails-border)] bg-[var(--background)] p-4 shadow-[var(--shadow-soft)]">
+          <div className="flex items-center gap-2">
+            <SparkleIcon className="h-4 w-4 shrink-0 text-[var(--sails-blue)]" />
+            <h2 className="text-sm font-medium text-[var(--foreground)]">Your CRO&apos;s diagnosis</h2>
+            <Link
+              href="/journey/cro-diagnosis"
+              className="ml-auto text-xs font-medium text-[var(--sails-blue)] hover:underline"
+            >
+              Re-run
+            </Link>
+          </div>
+          <div className="mt-3 flex flex-col gap-3">
+            {croGaps.map((g, i) => {
+              const nextExercise = exercises.find((e) => e.data.slug === g.nextStep)?.data;
+              return (
+                <div key={i} className="border-t border-[var(--sails-border)] pt-3 first:border-t-0 first:pt-0">
+                  <p className="text-sm font-medium text-[var(--foreground)]">
+                    {i + 1}. {g.gap}
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-muted">{g.reasoning}</p>
+                  {nextExercise ? (
+                    <Link
+                      href={`/journey/${nextExercise.slug}`}
+                      className="mt-1.5 inline-flex items-center gap-1 text-sm font-medium text-[var(--sails-blue)] hover:underline"
+                    >
+                      {nextExercise.title}
+                      <ChevronRightIcon className="h-3.5 w-3.5" />
+                    </Link>
+                  ) : (
+                    <p className="mt-1.5 text-xs text-muted">Suggested next step: {g.nextStep}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {!latestCroDiagnosis && tier && (
+        <Link
+          href="/journey/cro-diagnosis"
+          className="mt-4 flex items-center gap-3 rounded-2xl border border-dashed border-[var(--sails-border)] bg-[var(--background)] px-4 py-3.5 text-sm text-[var(--sails-blue)] shadow-[var(--shadow-soft)] transition-colors duration-150 hover:bg-[var(--sails-blue-light)]"
+        >
+          <SparkleIcon className="h-4 w-4 shrink-0" />
+          Get your CRO&apos;s diagnosis of what to fix first
+          <ChevronRightIcon className="ml-auto h-3.5 w-3.5" />
+        </Link>
       )}
 
       {latestOppRateDiagnosis && (
