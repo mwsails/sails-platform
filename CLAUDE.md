@@ -323,6 +323,66 @@ bug had never been exercised live. Fixed to use `.id`; new namespace field
 `personas.priority_order` stores real persona ids in rank order, verified
 live via DB query after reordering the list in the UI.
 
+**"Your CRO" — the platform's first real agent, live** (`cro-diagnosis`
+exercise, `cro-diagnosis` module, `content/prompts/cro-diagnosis.md`). The
+marketing site (`sails-advisory`, separate repo) has long pitched three
+named AI agents running the platform's continuous Assess/Build/Coach loop —
+a **CRO** (diagnosis), a **VP of Sales** (teaching), and an **Enablement
+Lead** (building) — but until this, nothing in this repo actually
+implemented any of them as a distinct thing; `ai_review`/`ai_generate`/AI
+suggestions are all generic, unnamed, single-exercise-step tools, and the
+only trace of the three-agent concept anywhere in the platform code was a
+literal `agent: "cro"` string tagging one `rep.commitments` entry. This is
+the first of the three, and the one with the most existing groundwork
+already pointing at it: `metrics.unused_sources` was explicitly seeded
+"so a future CRO gap-check can read this directly... nothing reads it yet"
+(see that field's own doc comment), and the existing `opp-rate-diagnosis`
+exercise's prompt already said "acting as this org's CRO" for one narrow
+metric.
+
+This generalizes that pattern from one metric to the whole org: reads
+broadly across nearly everything accumulated so far (ICP, personas, pain
+tree, messaging, objections, process, funnel metrics, team, open
+commitments — the same `ai_generate`/return-not-throw/forced-tool-call
+plumbing as every other AI step, just with a much wider `reads` list) and
+ranks the 3 biggest gaps, each with reasoning grounded in that org's actual
+numbers and a next-step pointing at a real exercise slug. Gated only on
+`company.recommended_tier` (onboarding complete), not on having finished
+any other exercise, so it is useful from day one — an org with nothing
+built yet gets "you have no personas defined" as a correctly-prioritized
+finding instead of an empty screen.
+
+Fixed at exactly 3 numbered gaps (`gap_1`/`gap_2`/`gap_3`, each with its own
+`_reasoning`/`_next_step`), not a variable-length array — `ai_generate`'s
+`fields` are a flat named-field object, not an array, so this is the shape
+that fits without new step-type plumbing. `gap_N_next_step` is an exercise
+slug; the model is grounded to the real curriculum list by name in the
+prompt text (not injected via `context`, since the exercise list is static
+content-loader data, not something `readContext` sees) — this needs a
+manual prompt edit whenever an exercise is added or renamed, a known
+tradeoff, not an oversight.
+
+The Journey page surfaces the latest diagnosis (append-only, same
+`mode: append` precedent as `metrics.diagnosis`) as a standalone card above
+the module list, each gap's next-step slug resolved to a real exercise
+link — same two-part pattern (completable exercise + standalone status
+card) as the existing opp-rate diagnosis.
+
+Verified live end to end: seeded an org with strong ICP/personas but
+deliberately no messaging, no objection bank, no cost-of-inaction estimate,
+and real (weak) funnel numbers. The diagnosis correctly skipped ICP and
+personas (already substantive) and flagged exactly the three real gaps,
+each citing exact seeded numbers (100 leads to 15 opportunities to 3 closed
+won, 40 hours a month, $20k ACV, one AE with no sales manager) rather than
+generic advice, with all three `next_step` values matching real curriculum
+slugs. Confirmed the write persisted correctly and the Journey page card
+rendered with working links to the right exercises.
+
+VP of Sales and Enablement Lead are not started — CRO was the deliberate
+first pick (it's the Assess step; the other two don't have anything to act
+on without a diagnosis driving them), not a promise about build order
+beyond that.
+
 Not done: PDF export (see above).
 
 ## Hosting (once past Phase 0)

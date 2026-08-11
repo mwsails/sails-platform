@@ -1,0 +1,101 @@
+# The platform's first full-context AI diagnosis, not scoped to one metric
+# like opp-rate-diagnosis — reads broadly across everything the org has
+# accumulated so far and ranks the 3 biggest gaps. Gated only on onboarding
+# being complete (company.recommended_tier), not on having finished other
+# exercises first, so it's useful from day one: a rep with nothing built
+# yet gets "you have no personas defined" as a real, correctly-prioritized
+# finding, not an empty screen. Same ai_generate + editable-review-before-
+# save pattern as opp-rate-diagnosis (Exercise Schema Section 6/9,
+# CLAUDE.md rule 5) — the model's diagnosis is a draft to agree with,
+# push back on, or edit, not a verdict that saves itself.
+slug: cro-diagnosis
+schema_version: 1
+title: "Your CRO's Diagnosis"
+module: cro-diagnosis
+tracks: [smb, mid-market]
+time_estimate: 5m
+intent: development
+
+reads:
+  [
+    company.recommended_tier,
+    company.acv,
+    company.cycle_length_days,
+    icp.segments,
+    personas.personas,
+    personas.champion_checks,
+    personas.priority_order,
+    pain_tree.impact_areas,
+    pain_tree.cost_of_inaction_estimate,
+    messaging.pov_statement,
+    messaging.problem_statements,
+    messaging.soundbites,
+    messaging.value_map,
+    messaging.proof_points,
+    objections.objections,
+    process.stages,
+    process.discovery_script,
+    metrics.lead_sources,
+    metrics.unused_sources,
+    metrics.diagnosis,
+    team.current_roles,
+    team.has_sales_manager,
+    rep.commitments,
+  ]
+requires: [company.recommended_tier]
+
+writes:
+  - from: answers.diagnosis
+    to: org.cro_diagnosis
+    mode: append
+
+steps:
+  - type: teach
+    body: |
+      Your CRO looked at everything you've told the platform so far and
+      picked the 3 things most likely holding revenue back right now. This
+      is a starting point, not a verdict — agree with it, push back on it,
+      edit anything that's off, then save your read.
+
+  - id: diagnosis
+    type: ai_generate
+    prompt_ref: cro-diagnosis
+    reads:
+      [
+        company.recommended_tier,
+        company.acv,
+        company.cycle_length_days,
+        icp.segments,
+        personas.personas,
+        personas.champion_checks,
+        personas.priority_order,
+        pain_tree.impact_areas,
+        pain_tree.cost_of_inaction_estimate,
+        messaging.pov_statement,
+        messaging.problem_statements,
+        messaging.soundbites,
+        messaging.value_map,
+        messaging.proof_points,
+        objections.objections,
+        process.stages,
+        process.discovery_script,
+        metrics.lead_sources,
+        metrics.unused_sources,
+        metrics.diagnosis,
+        team.current_roles,
+        team.has_sales_manager,
+        rep.commitments,
+      ]
+    fields:
+      - { name: gap_1, label: "Gap 1", type: text }
+      - { name: gap_1_reasoning, label: "Why it matters", type: textarea }
+      - { name: gap_1_next_step, label: "Next step (exercise slug)", type: text }
+      - { name: gap_2, label: "Gap 2", type: text }
+      - { name: gap_2_reasoning, label: "Why it matters", type: textarea }
+      - { name: gap_2_next_step, label: "Next step (exercise slug)", type: text }
+      - { name: gap_3, label: "Gap 3", type: text }
+      - { name: gap_3_reasoning, label: "Why it matters", type: textarea }
+      - { name: gap_3_next_step, label: "Next step (exercise slug)", type: text }
+
+  - type: output_preview
+    shows_writes: true
